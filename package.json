@@ -1,0 +1,26 @@
+{
+  "name": "weblisp",
+  "version": "0.0.1",
+  "description": "LISP interpreter, written for the web / node.js",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build.js",
+    "webserver": "php -S localhost:8443"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andreas-schwenk/weblisp.git"
+  },
+  "author": "Andreas Schwenk <contact@compiler-construction.com> (https://www.arts-and-sciences.com/)",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/andreas-schwenk/weblisp/issues"
+  },
+  "homepage": "https://github.com/andreas-schwenk/weblisp#readme",
+  "keywords": [
+    "lisp"
+  ],
+  "devDependencies": {
+    "esbuild": "^0.15.12"
+  }
+}

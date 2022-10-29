@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Andreas Schwenk">
+    <title>webLISP Playground</title>
+    <link rel="stylesheet" href="Skeleton-2.0.4/css/skeleton.css" />
+    <script src="../build/weblisp.min.js"></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="row">
+        <h1>webLISP Playground</h1>
+        <p>
+          webLISP is a nano Common-LISP implementation. 
+          Its main purpose is educational based.
+          Implemented operations:<br/>
+          <!-- the following list can be extracted by running python3 docs/get_ops.py -->
+          <code>&gt;</code>, <code>&lt;</code>, <code>*</code>, <code>+</code>, <code>-</code>, <code>/</code>, <code>defun</code>, <code>defvar</code>, <code>dotimes</code>, <code>if</code>, <code>let</code>, <code>let*</code>, <code>setq</code>, <code>terpri</code>, <code>write</code>
+          .
+        </p>
+      </div>
+
+      <div class="row">
+        <h2>Input</h2>
+        <textarea
+          id="editor"
+          class="u-full-width"
+          style="width: 100%; min-height: 275px"
+          spellcheck="false"
+        ></textarea>
+        <button type="button" onclick="run();">run</button>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        limit runtime to
+        <input id="maxRuntime" type="text" value="3" size="3"/>
+        seconds
+        <br />
+      </div>
+
+      <br />
+
+      <div class="row">
+        <h2>Output</h2>
+        <div id="output">(empty)</div>
+      </div>
+
+      <br />
+      <p>
+        author:
+        <a href="https://arts-and-sciences.com"
+          >Andreas Schwenk</a
+        >
+        license: GPLv3
+      </p>
+    </div>
+
+    <script>
+      const example =
+`(defun fib (n)
+  (if (< n 2)
+      n
+      (+ (fib (- n 1))
+         (fib (- n 2)))))
+
+(write (fib 6))
+(terpri)
+`
+      document.getElementById('editor').value = example;
+
+      let worker = null;
+
+      if (window.Worker) {
+        worker = new Worker('run.js');
+        worker.onmessage = (e) => {
+          document.getElementById('output').innerHTML = e.data;
+        }
+      } else {
+        document.getElementById('output').innerHTML = 'error: your browser does not support web workers'
+      }
+
+      function run() {
+        if(worker == null) return;
+        document.getElementById('output').innerHTML = '... running';
+        let src = document.getElementById('editor').value;
+        maxRuntime = parseInt(document.getElementById('maxRuntime').value);
+        worker.postMessage({src: src, maxRuntime: maxRuntime});
+      }
+
+    </script>
+  </body>
+</html>
