@@ -1,4 +1,4 @@
-importScripts('../build/weblisp.min.js');
+importScripts('weblisp.min.js');
 
 const w = new weblisp.WebLISP();
 
