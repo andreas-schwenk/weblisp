@@ -4,7 +4,7 @@
   "description": "LISP interpreter, written for the web / node.js",
   "main": "index.js",
   "scripts": {
-    "build": "node build.js",
+    "build": "node build.js && cp build/weblisp.min.js docs/",
     "webserver": "php -S localhost:8443"
   },
   "repository": {
