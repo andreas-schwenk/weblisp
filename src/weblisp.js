@@ -6,6 +6,7 @@ LISP tutorials:
 - https://jtra.cz/stuff/lisp/sclr/index.html
 
 TODO:
+- convert to uppercase while reading
 - use two namespaces: functions and variables:
   https://wiki.c2.com/?SchemeLanguage
 */
@@ -128,6 +129,16 @@ class WebLISP {
         case "_PROG":
           for (const c of cdr) this.eval(c);
           return null;
+        case "car":
+          y = this.eval(cdr);
+          return y.length > 0 ? y[0] : null;
+        case "cdr":
+          y = this.eval(cdr);
+          return y.length > 0 ? y.slice(1) : null;
+        case "cons":
+          if (cdr.length != 2) throw new Error("cons requires 2 arguments");
+          y = this.eval(cdr);
+          return cdr;
         case "write":
           val = this.eval(cdr[0]);
           console.log(val);
@@ -161,10 +172,13 @@ class WebLISP {
             return prod;
           }
         case "<":
+          // TODO: error handling
           return this.eval(cdr[0]) < this.eval(cdr[1]);
         case ">":
+          // TODO: error handling
           return this.eval(cdr[0]) > this.eval(cdr[1]);
         case "terpri":
+          // TODO: error handling
           this.output += "\n";
           return null;
         case "defun":
@@ -173,6 +187,8 @@ class WebLISP {
           return null;
         case "defvar":
         case "setq":
+          // TODO: error handling
+          // forbid settings constants (e.g. T)
           id = cdr[0];
           val = this.eval(cdr[1]);
           found = false;
@@ -188,6 +204,7 @@ class WebLISP {
           return val;
         case "let":
         case "let*":
+          // TODO: error handling
           this.vars.push({});
           if (car === "let*") {
             for (const decl of cdr[0])
@@ -205,16 +222,54 @@ class WebLISP {
           this.vars.pop();
           return y;
         case "if":
+          // TODO: error here
           if (this.eval(cdr[0])) return this.eval(cdr[1]);
           else if (cdr.length == 3) return this.eval(cdr[2]);
-          else return null; // TODO: error here
+          else return null;
         case "dotimes":
+          // TODO: error handling
           n = this.eval(cdr[0][1]);
           for (let k = 0; k < n; k++) {
             this.vars[this.vars.length - 1][cdr[0][0]] = k;
             y = null;
             for (const c of cdr.slice(1)) y = this.eval(c);
           }
+          return y;
+        case "sin":
+          if (cdr.length != 1) throw new Error("sin requires 1 argument");
+          return Math.sin(this.eval(cdr[0]));
+        case "cos":
+          if (cdr.length != 1) throw new Error("cos requires 1 argument");
+          return Math.cos(this.eval(cdr[0]));
+        case "exp":
+          if (cdr.length != 1) throw new Error("exp requires 1 argument");
+          return Math.exp(this.eval(cdr[0]));
+        case "sqrt": // TODO: complex
+          if (cdr.length != 1) throw new Error("sqrt requires 1 argument");
+          return Math.sqrt(this.eval(cdr[0]));
+        case "zerop":
+          if (cdr.length != 1) throw new Error("zerop requires 1 argument");
+          return eval(cdr[0]) == 0 ? true : null;
+        case "random":
+          if (cdr.length != 1) throw new Error("random requires 1 argument");
+          x = this.eval(cdr[0]);
+          if (Number.isInteger(cdr[0])) return Math.floor(Math.random() * x);
+          else return Math.random() * x;
+        case "min":
+          if (cdr.length < 1)
+            throw new Error("min requires at least one argument");
+          x = [];
+          for (const c of cdr) x.push(this.eval(c));
+          y = Infinity;
+          for (const xi of x) if (xi < y) y = xi;
+          return y;
+        case "max":
+          if (cdr.length < 1)
+            throw new Error("min requires at least one argument");
+          x = [];
+          for (const c of cdr) x.push(this.eval(c));
+          y = -Infinity;
+          for (const xi of x) if (xi > y) y = xi;
           return y;
         default:
           if (car in this.functions) {
@@ -270,6 +325,7 @@ class WebLISP {
       return s;
     } else {
       if (sexpr == null) return "NIL";
+      else if (sexpr == true) return "T";
       else return "" + sexpr;
     }
   }
