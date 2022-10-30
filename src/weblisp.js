@@ -9,6 +9,35 @@ TODO:
 - convert to uppercase while reading
 - use two namespaces: functions and variables:
   https://wiki.c2.com/?SchemeLanguage
+- (list* 1 2 3 4 5) vs (list 1 2 3 4 5) -> dotted lists
+
+Break 15 [17]> (car (cons 1 2))
+1
+Break 15 [17]> (cdr (cons 1 2))
+2
+Break 15 [17]> (cdr (list 1 2))
+(2)
+Break 15 [17]> (cdr (list* 1 2))
+2
+Break 15 [17]> (cdr (list* 1 2 3))
+(2 . 3)
+
+Break 16 [18]> (cons 1 '(2 3))
+(1 2 3)
+Break 16 [18]> (cons 1 '(2))
+(1 2)
+Break 16 [18]> (cons 1 '())
+(1)
+Break 16 [18]> (cons 1 2)
+(1 . 2)
+
+Break 18 [20]> (car '((1 2) 3))
+(1 2)
+Break 18 [20]> (cdr '((1 2) 3))
+(3)
+
+https://www.tutorialspoint.com/lisp/lisp_lists.htm
+
 */
 
 class WebLISP {
@@ -121,6 +150,7 @@ class WebLISP {
     )
       throw Error("max allowed runtime exceeded!");
     if (Array.isArray(sexpr)) {
+      if (sexpr.length == 0) return null;
       let car = sexpr[0];
       let cdr = sexpr.slice(1);
       let id, sum, prod, n, x, y, val;
@@ -136,9 +166,16 @@ class WebLISP {
           y = this.eval(cdr);
           return y.length > 0 ? y.slice(1) : null;
         case "cons":
+          // TODO: cyclic data structures, ...
           if (cdr.length != 2) throw new Error("cons requires 2 arguments");
           y = this.eval(cdr);
           return cdr;
+        case "length":
+          if (cdr.length != 1) throw new Error("length requires 1 argument");
+          y = this.eval(cdr[0]);
+          if (Array.isArray(y) == false)
+            throw new Error("arg of length is not a list");
+          return y.length;
         case "write":
           val = this.eval(cdr[0]);
           console.log(val);
