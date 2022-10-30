@@ -12,6 +12,7 @@
     "sexpr",
     "symtab",
     "terpri",
-    "weblisp"
+    "weblisp",
+    "zerop"
   ]
 }
