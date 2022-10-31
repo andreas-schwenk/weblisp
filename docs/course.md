@@ -27,21 +27,23 @@ TODO: replace `lisp ... ` by an interactive playground
 ## Functions
 
 factorial
-$$n! = \prod_{k=1}^n k = 1 \cdot 2 \cdot ~\cdots~ \cdot n$$
+$$n! = \prod_{k=1}^n k = 1 \cdot 2 \cdot ~\cdots~ \cdot (n-1) \cdot n$$
 
 Recursive definition:
-$$n! = n \cdot (n-1)! ~~~\text{with}~~~ 0!=1$$
+$$n! = (n-1)! \cdot n ~~~\text{with}~~~ 0!=1$$
 
 With cases:
-$$n! = \begin{cases}1 & \text{if } n\leq 1 \\ n \cdot (n-1)! & \text{otherwise }\end{cases}$$
+$$n! = \begin{cases}1 & \text{if } n\leq 1 \\ (n-1)! \cdot n & \text{otherwise }\end{cases}$$
 
 ```lisp
 (defun fac (n)
     (if (<= n 1)
         1
-        (* n (fac (- n 1)))
+        (* (fac (- n 1)) n)
     )
 )
+
+(write (fac 6))
 ```
 
 <!--TODO: tail recursion-->
