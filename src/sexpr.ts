@@ -164,7 +164,24 @@ export class SExpr {
       case SExprType.String:
         return this.data as string;
       case SExprType.Cons:
-        let s = "";
+        // TODO: also parse in while loops
+        let s = "(";
+        let node = this as SExpr;
+        let i = 0;
+        do {
+          if (node.type != SExprType.Cons) {
+            s += " . " + node.toString();
+            break;
+          }
+          if (node.car == null) s += "NIL";
+          else s += (i > 0 ? " " : "") + node.car.toString();
+          node = node.cdr;
+          i++;
+        } while (node != null);
+        s += ")";
+        return s;
+      // OLD:
+      /*let s = "";
         if (this.car == null) s = "NIL";
         else if (this.car.type === SExprType.Cons) s = this.car.toString(true);
         else s = this.car.toString(false);
@@ -173,7 +190,7 @@ export class SExpr {
           s += " " + this.cdr.toString(false);
         else s += " . " + this.cdr.toString(true);
         if (parentheses) return "(" + s + ")";
-        else return s;
+        else return s;*/
       default:
         throw Error("unimplemented");
     }
