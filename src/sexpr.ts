@@ -1,3 +1,5 @@
+/* webLISP, 2022 by Andreas Schwenk */
+
 export enum SExprType {
   Cons = "CONS", // car, cdr
   Int = "INT", // atom
@@ -54,26 +56,34 @@ export class SExpr {
     let tk = "";
     const ws = " \t\n"; // white spaces
     const del = "()+-*/><="; // delimiters
-    // TODO: multi-char delimiters: ">=", ...
     const ws_del = ws + del;
     for (let i = 0; i < n; i++) {
       let ch = input[i];
+      let ch2 = i < n - 1 ? input[i + 1] : "";
       if (ch == ";") {
         i++;
-        // comment
-        while (i < n && ch != "\n") ch = input[i++];
+        while (i < n && ch != "\n") {
+          ch = input[i++];
+        }
       }
       if (ws_del.includes(ch)) {
         if (tk.length > 0) {
           tokens.push(tk);
           tk = "";
         }
-        if (!ws.includes(ch)) tokens.push(ch);
+        if (!ws.includes(ch)) {
+          if (ch2 == "=" && (ch == "<" || ch == ">" || ch == "/")) {
+            tokens.push(ch + ch2);
+            i++;
+          } else {
+            tokens.push(ch);
+          }
+        }
       } else tk += ch;
     }
     if (tk.length > 0) tokens.push(tk);
     // (b) parse
-    // TODO: tokenize + parse simultaneously
+    // TODO: tokenize + parse simultaneously // or write next() method (??)
     let sexprList: SExpr[] = [];
     let stack: SExpr[] = [];
     let s: SExpr = null;
@@ -109,27 +119,27 @@ export class SExpr {
         if (stack.length == 0) throw Error("')' is not allowed");
         s = stack.pop();
       } else {
-        let u: SExpr = null;
+        let atom: SExpr = null;
         if (token[0] >= "0" && token[0] <= "9") {
           const value = parseFloat(token);
-          u = SExpr.atomINT(value); // TODO: INT vs FLOAT
+          atom = SExpr.atomINT(value); // TODO: INT vs FLOAT
         } else {
-          u = SExpr.atomID(token);
+          atom = SExpr.atomID(token);
         }
         if (s == null) {
           if (nextIsCdr) throw Error("'.' not allowed here");
-          s = u;
+          s = atom;
         } else if (nextIsCdr) {
           nextIsCdr = false;
           if (s.cdr != null) throw Error("'.' not allowed here");
-          s.cdr = u;
+          s.cdr = atom;
         } else {
           if (s.car != null) {
             if (s.cdr != null) throw Error("'.' not allowed here");
             s.cdr = SExpr.cons(null, null);
             s = s.cdr;
           }
-          s.car = u;
+          s.car = atom;
         }
       }
       if (depth == 0) {
@@ -141,12 +151,16 @@ export class SExpr {
     return sexprList; // TODO
   }
 
+  /**
+   * Converts an s-expr to a string.
+   * @param parentheses
+   * @returns
+   */
   toString(parentheses = true): string {
     switch (this.type) {
       case SExprType.Int:
         return "" + (this.data as number);
       case SExprType.Identifier:
-        return this.data as string;
       case SExprType.String:
         return this.data as string;
       case SExprType.Cons:
