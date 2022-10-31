@@ -83,6 +83,7 @@ export class SExpr {
           s = s.cdr;
         } else {
           if (s.car != null) {
+            if (s.cdr != null) throw Error("'.' not allowed here");
             s.cdr = SExpr.cons(null, null);
             s = s.cdr;
           }
@@ -110,6 +111,7 @@ export class SExpr {
           s.cdr = u;
         } else {
           if (s.car != null) {
+            if (s.cdr != null) throw Error("'.' not allowed here");
             s.cdr = SExpr.cons(null, null);
             s = s.cdr;
           }
