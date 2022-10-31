@@ -75,7 +75,13 @@ s = SExpr.fromString(exp);
 t = s.toString();
 assert.ok(t === exp);
 
-// TODO: test if error occurs for "(1 . 2 3)"
+exp = "(1 . 2 3)";
+try {
+  s = SExpr.fromString(exp);
+  assert.ok(false);
+} catch (e) {
+  assert.ok(true);
+}
 
 s = SExpr.fromString("(1 . (2 3))");
 t = s.toString();
