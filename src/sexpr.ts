@@ -1,5 +1,5 @@
 export enum SExprType {
-  Cons = "CONS",
+  Cons = "CONS", // car, cdr
   Int = "INT", // atom
   Identifier = "ID", // atom
   String = "STRING", // atom
@@ -8,8 +8,8 @@ export enum SExprType {
 export class SExpr {
   type: SExprType;
   data: number | string;
-  car: SExpr | null = null;
-  cdr: SExpr | null = null;
+  car: SExpr | null = null; // only valid, if type == SExprType.Cons
+  cdr: SExpr | null = null; // only valid, if type == SExprType.Cons
 
   static cons(car: SExpr | null, cdr: SExpr | null): SExpr {
     const s = new SExpr();
@@ -40,7 +40,12 @@ export class SExpr {
     return s;
   }
 
-  static fromString(input: string): SExpr {
+  /**
+   * returns a list of s-expressions, e.g. "(+ 3 4) 5" returns two s-expressions.
+   * @param input
+   * @returns
+   */
+  static fromString(input: string): SExpr[] {
     // (a) tokenize
     const tokens = [];
     const n = input.length;
@@ -52,7 +57,12 @@ export class SExpr {
     // TODO: multi-char delimiters: ">=", ...
     const ws_del = ws + del;
     for (let i = 0; i < n; i++) {
-      const ch = input[i];
+      let ch = input[i];
+      if (ch == ";") {
+        i++;
+        // comment
+        while (i < n && ch != "\n") ch = input[i++];
+      }
       if (ws_del.includes(ch)) {
         if (tk.length > 0) {
           tokens.push(tk);
@@ -64,13 +74,16 @@ export class SExpr {
     if (tk.length > 0) tokens.push(tk);
     // (b) parse
     // TODO: tokenize + parse simultaneously
+    let sexprList: SExpr[] = [];
     let stack: SExpr[] = [];
     let s: SExpr = null;
     let nextIsCdr = false;
+    let depth = 0;
     for (const token of tokens) {
       if (token === ".") {
         nextIsCdr = true;
       } else if (token === "(") {
+        depth++;
         if (s == null) {
           if (nextIsCdr) throw Error("'.' not allowed here");
           s = SExpr.cons(null, null);
@@ -92,6 +105,7 @@ export class SExpr {
           s = s.car;
         }
       } else if (token === ")") {
+        depth--;
         if (stack.length == 0) throw Error("')' is not allowed");
         s = stack.pop();
       } else {
@@ -118,8 +132,13 @@ export class SExpr {
           s.car = u;
         }
       }
+      if (depth == 0) {
+        sexprList.push(s);
+        s = null;
+      }
     }
-    return s; // TODO
+    if (depth != 0) throw Error("not well formed");
+    return sexprList; // TODO
   }
 
   toString(parentheses = true): string {
