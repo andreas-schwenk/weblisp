@@ -106,7 +106,8 @@ assert.ok(s.length == 1);
 t = s.toString();
 assert.ok(t === "(* (+ 2 3) 4)");
 
-s = SExpr.fromString("(>= a b)");
+exp = "(>= a b)";
+s = SExpr.fromString(exp);
 assert.ok(s.length == 1);
 t = s.toString();
 assert.ok(t === exp);
