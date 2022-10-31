@@ -62,16 +62,19 @@ assert.ok(s.toString() === exp);
 
 exp = "(* 21 (+ 31 41) 51)";
 s = SExpr.fromString(exp);
+assert.ok(s.length == 1);
 let t = s.toString();
 assert.ok(t === exp);
 
 exp = "21";
 s = SExpr.fromString(exp);
+assert.ok(s.length == 1);
 t = s.toString();
 assert.ok(t === exp);
 
 exp = "(1 . 2)";
 s = SExpr.fromString(exp);
+assert.ok(s.length == 1);
 t = s.toString();
 assert.ok(t === exp);
 
@@ -84,12 +87,26 @@ try {
 }
 
 s = SExpr.fromString("(1 . (2 3))");
+assert.ok(s.length == 1);
 t = s.toString();
 assert.ok(t === "(1 2 3)");
 
 // TODO
-/*
-exp = "21 31";
+exp = "5 (* 3 4)";
 s = SExpr.fromString(exp);
-assert.ok(s.toString() === exp);
-*/
+assert.ok(s.length == 2);
+t = s[0].toString() + " " + s[1].toString();
+assert.ok(t === exp);
+
+s = SExpr.fromString(`
+(* (+ 2 3) ; comment
+    4)
+`);
+assert.ok(s.length == 1);
+t = s.toString();
+assert.ok(t === "(* (+ 2 3) 4)");
+
+s = SExpr.fromString("(>= a b)");
+assert.ok(s.length == 1);
+t = s.toString();
+assert.ok(t === exp);
