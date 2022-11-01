@@ -118,7 +118,7 @@ class WebLISP {
           sexpr = [];
           break;
         case ")":
-          if (stack.length == 0) throw Error('")" is not allowed');
+          if (stack.length == 0) throw new Error('")" is not allowed');
           let x = stack.pop();
           x.push(sexpr);
           sexpr = x;
@@ -148,7 +148,7 @@ class WebLISP {
       this.maxSeconds != Infinity &&
       (Date.now() - this.startTime) / 1000 > this.maxSeconds
     )
-      throw Error("max allowed runtime exceeded!");
+      throw new Error("max allowed runtime exceeded!");
     if (Array.isArray(sexpr)) {
       if (sexpr.length == 0) return null;
       let car = sexpr[0];
