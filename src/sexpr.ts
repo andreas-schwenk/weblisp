@@ -30,14 +30,14 @@ export class SExpr {
 
   static atomID(id: string): SExpr {
     const s = new SExpr();
-    s.type = SExprType.String;
+    s.type = SExprType.Identifier;
     s.data = id;
     return s;
   }
 
   static atomSTRING(str: string): SExpr {
     const s = new SExpr();
-    s.type = SExprType.Identifier;
+    s.type = SExprType.String;
     s.data = str;
     return s;
   }
@@ -47,15 +47,15 @@ export class SExpr {
    * @param input
    * @returns
    */
-  static fromString(input: string): SExpr[] {
+  /*static fromString(input: string): SExpr[] {
     // (a) tokenize
     const tokens = [];
-    const n = input.length;
-    let row = 1,
-      col = 1; // TODO
+    let n = input.length;
+    let row = 1; // TODO
+    let col = 1; // TODO
     let tk = "";
     const ws = " \t\n"; // white spaces
-    const del = "()+-*/><="; // delimiters
+    const del = "()+/-*><="; // delimiters
     const ws_del = ws + del;
     for (let i = 0; i < n; i++) {
       let ch = input[i];
@@ -95,18 +95,18 @@ export class SExpr {
       } else if (token === "(") {
         depth++;
         if (s == null) {
-          if (nextIsCdr) throw Error("'.' not allowed here");
+          if (nextIsCdr) throw new Error("'.' not allowed here");
           s = SExpr.cons(null, null);
           stack.push(s);
         } else if (nextIsCdr) {
           nextIsCdr = false;
-          if (s.cdr != null) throw Error("'.' not allowed here");
+          if (s.cdr != null) throw new Error("'.' not allowed here");
           stack.push(s);
           s.cdr = SExpr.cons(null, null);
           s = s.cdr;
         } else {
           if (s.car != null) {
-            if (s.cdr != null) throw Error("'.' not allowed here");
+            if (s.cdr != null) throw new Error("'.' not allowed here");
             s.cdr = SExpr.cons(null, null);
             s = s.cdr;
           }
@@ -116,7 +116,7 @@ export class SExpr {
         }
       } else if (token === ")") {
         depth--;
-        if (stack.length == 0) throw Error("')' is not allowed");
+        if (stack.length == 0) throw new Error("')' is not allowed");
         s = stack.pop();
       } else {
         let atom: SExpr = null;
@@ -127,15 +127,15 @@ export class SExpr {
           atom = SExpr.atomID(token);
         }
         if (s == null) {
-          if (nextIsCdr) throw Error("'.' not allowed here");
+          if (nextIsCdr) throw new Error("'.' not allowed here");
           s = atom;
         } else if (nextIsCdr) {
           nextIsCdr = false;
-          if (s.cdr != null) throw Error("'.' not allowed here");
+          if (s.cdr != null) throw new Error("'.' not allowed here");
           s.cdr = atom;
         } else {
           if (s.car != null) {
-            if (s.cdr != null) throw Error("'.' not allowed here");
+            if (s.cdr != null) throw new Error("'.' not allowed here");
             s.cdr = SExpr.cons(null, null);
             s = s.cdr;
           }
@@ -147,9 +147,9 @@ export class SExpr {
         s = null;
       }
     }
-    if (depth != 0) throw Error("not well formed");
+    if (depth != 0) throw new Error("not well formed");
     return sexprList; // TODO
-  }
+  }*/
 
   /**
    * Converts an s-expr to a string.
@@ -164,17 +164,16 @@ export class SExpr {
       case SExprType.String:
         return this.data as string;
       case SExprType.Cons:
-        // TODO: also parse in while loops
         let s = "(";
         let node = this as SExpr;
         let i = 0;
         do {
+          if (i > 0) s += " ";
           if (node.type != SExprType.Cons) {
-            s += " . " + node.toString();
+            s += "." + " " + node.toString();
             break;
           }
-          if (node.car == null) s += "NIL";
-          else s += (i > 0 ? " " : "") + node.car.toString();
+          s += node.car == null ? "NIL" : node.car.toString();
           node = node.cdr;
           i++;
         } while (node != null);
@@ -192,7 +191,7 @@ export class SExpr {
         if (parentheses) return "(" + s + ")";
         else return s;*/
       default:
-        throw Error("unimplemented");
+        throw new Error("unimplemented");
     }
   }
 }
