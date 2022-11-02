@@ -25,11 +25,13 @@ assert.ok(sexpr[1].toString() === "5");
 let src_arr = [
   "21 -> 21",
   "(1 . 2) -> (1 . 2)",
+  "(1 2 . 3) -> (1 2 . 3)",
   "(1 . 2 3) -> error",
   "(1 . (2 3)) -> (1 2 3)",
   "(1 . . 2) -> error",
   "(>= a b) -> (>= A B)",
   "() -> NIL",
+  "NIL -> NIL",
 ];
 
 for (let src of src_arr) {
@@ -51,7 +53,3 @@ for (let src of src_arr) {
     "failed: expected '" + expected + "', but got '" + str + "'"
   );
 }
-
-// TODO: src = "( a b . c )";
-
-//TODO: migrate tests from sexpr_TESTS
