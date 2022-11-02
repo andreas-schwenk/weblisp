@@ -11,9 +11,7 @@ let src = `
 const lex = new Lexer(src);
 
 while (!lex.isEof()) {
-  console.log(
-    lex.getTokenRow() + ":" + lex.getTokenCol() + ":" + lex.getToken()
-  );
+  console.log(lex.getRow() + ":" + lex.getCol() + ":" + lex.getToken());
   lex.next();
 }
 
