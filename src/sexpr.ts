@@ -13,6 +13,8 @@ export class SExpr {
   car: SExpr | null = null; // only valid, if type == SExprType.Cons
   cdr: SExpr | null = null; // only valid, if type == SExprType.Cons
 
+  // TODO: remove null for car and cdr -> MUST be SExpr of type NIL then!!!!
+
   static cons(car: SExpr | null, cdr: SExpr | null): SExpr {
     const s = new SExpr();
     s.type = SExprType.Cons;
