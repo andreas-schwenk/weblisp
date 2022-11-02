@@ -90,6 +90,17 @@ export class Lexer {
         this.pos++;
         this.col++;
         this.token = ch;
+        // TODO: improve the following multi-char code
+        if (ch == ">" || ch == "<") {
+          if (this.pos < this.len) {
+            let ch2 = this.src[this.pos];
+            if (ch2 == "=") {
+              this.pos++;
+              this.col++;
+              this.token += ch2;
+            }
+          }
+        }
         return;
       } else {
         return;
