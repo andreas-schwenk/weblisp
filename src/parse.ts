@@ -12,7 +12,7 @@ export class Parser {
     return res;
   }
 
-  //G sexpr = "(" { sexpr } ")" | ":" | INT | ID;
+  //G sexpr = "(" { sexpr } ")" | "NIL" | "." | INT | ID;
   private static parseRec(lexer: Lexer): SExpr {
     if (lexer.getToken() === "NIL") {
       return SExpr.atomNIL();
@@ -22,11 +22,13 @@ export class Parser {
       let first: SExpr = SExpr.atomNIL();
       let i = 0;
       let dot = false;
+      let dots = 0;
       while (!lexer.isEof() && lexer.getToken() !== ")") {
         const s = this.parseRec(lexer);
         if (s.type === SExprType.IDENTIFIER && s.data === ".") {
           if (i == 0) throw new Error("'.' is not allowed here.");
           dot = true;
+          dots++;
           continue;
         }
         if (dot) {
@@ -40,7 +42,7 @@ export class Parser {
         sexpr = cons;
         i++;
       }
-      if (dot) throw new Error("'.' is not allowed here.");
+      if (dot || dots > 1) throw new Error("'.' is not allowed here.");
       if (lexer.getToken() === ")") lexer.next();
       else throw new Error("expected ')'");
       return first;
