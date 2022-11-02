@@ -20,10 +20,10 @@ export class Lexer {
   getToken(): string {
     return this.token;
   }
-  getTokenRow(): number {
+  getRow(): number {
     return this.tokenRow;
   }
-  getTokenCol(): number {
+  getCol(): number {
     return this.tokenCol;
   }
   isEof(): boolean {
