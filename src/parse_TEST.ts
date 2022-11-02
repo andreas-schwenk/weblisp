@@ -9,12 +9,11 @@ let src = `
 (* (+ 21 31) ; comment
     41)
 `;
-//src = "()";
 let exp = "(* (+ 21 31) 41)";
 let lex = new Lexer(src);
 let sexpr = Parser.parse(lex);
-//sexpr[0].toString();
-assert.ok(sexpr.toString() === exp);
+assert.ok(sexpr.length == 1);
+assert.ok(sexpr[0].toString() === exp);
 
 src = "(a b) 5"; // TODO: 5 (* 3 4)
 lex = new Lexer(src);
@@ -40,6 +39,7 @@ for (let src of src_arr) {
   let str = "";
   try {
     const sexpr = Parser.parse(lex);
+    assert.ok(sexpr.length == 1);
     str = sexpr[0].toString();
   } catch (e) {
     assert.ok(expected === "error");
