@@ -3,14 +3,6 @@
 import { Lexer } from "./lex";
 import { SExpr, SExprType } from "./sexpr";
 
-export class ParseError extends Error {
-  constructor(msg: string, row = -1, col = -1) {
-    if (row < 0) super("Error: " + msg);
-    else super("Error:" + row + ":" + col + ": " + msg);
-    this.name = "ParseError";
-  }
-}
-
 export class Parser {
   public static parse(lexer: Lexer): SExpr[] {
     const res: SExpr[] = [];
@@ -81,5 +73,13 @@ export class Parser {
       lexer.next();
       return sexpr;
     }
+  }
+}
+
+export class ParseError extends Error {
+  constructor(msg: string, row = -1, col = -1) {
+    if (row < 0) super("Error: " + msg);
+    else super("Error:" + row + ":" + col + ": " + msg);
+    this.name = "ParseError";
   }
 }
