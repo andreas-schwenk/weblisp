@@ -45,8 +45,11 @@ export class WebLISP {
       throw new RunError("max allowed runtime exceeded!");
     }
     // evaluate
-    let sum: number;
+    let res: number;
     let s, t: SExpr;
+    let op = "";
+    let i = 0;
+
     switch (sexpr.type) {
       case SExprType.NIL:
       case SExprType.INT:
@@ -55,22 +58,57 @@ export class WebLISP {
       case SExprType.CONS:
         switch (sexpr.car.type) {
           case SExprType.ID:
-            switch (sexpr.car.data) {
+            op = sexpr.car.data as string;
+            switch (op) {
               case "+":
-                sum = 0;
-                s = sexpr.cdr;
+              case "-":
+              case "*":
+                res = op === "*" ? 1 : 0;
+                (s = sexpr.cdr), (i = 0);
                 while (s.type == SExprType.CONS) {
                   t = this.eval(s.car);
-                  sum += t.data as number; // TODO: check type
+                  switch (t.type) {
+                    case SExprType.INT:
+                      if (op === "*") res *= t.data as number;
+                      else res += t.data as number;
+                      break;
+                    default:
+                      throw new RunError(t.toString() + " is not a number");
+                  }
+                  if (i == 0 && op === "-") res = -res;
                   s = s.cdr;
+                  i++;
                 }
-                return SExpr.atomINT(sum);
+                return SExpr.atomINT(res);
 
+              case "QUOTE":
               case "WRITE":
-                // TODO: check, if cdr.car is valid; check that there are no more args, ...
-                t = this.eval(sexpr.cdr.car);
-                console.log(t.data as string);
-                return t;
+              case "CAR":
+              case "CDR":
+                if (
+                  sexpr.cdr.type === SExprType.NIL ||
+                  sexpr.cdr.cdr.type !== SExprType.NIL
+                )
+                  throw new RunError("expected one argument");
+                switch (op) {
+                  case "QUOTE":
+                    return sexpr.cdr.car;
+                  case "WRITE":
+                    t = this.eval(sexpr.cdr.car);
+                    console.log(t.toString());
+                    return t;
+                  case "CAR":
+                    s = this.eval(sexpr.cdr.car);
+                    if (s.type !== SExprType.CONS)
+                      throw new RunError("CAR expects a list");
+                    return s.car;
+                  case "CDR":
+                    s = this.eval(sexpr.cdr.car);
+                    if (s.type !== SExprType.CONS)
+                      throw new RunError("CAR expects a list");
+                    return s.cdr;
+                }
+
               default:
                 throw new RunError("unimplemented!!"); // TODO: some cases are errors
             }
@@ -96,7 +134,7 @@ export class RunError extends Error {
 
 // TODO: move the following to a new test file
 const w = new WebLISP();
-w.import("(write (+ 3 4 (+ 5 6)))");
+w.import("(write (+ 3 4 (* 5 6) 7 8 (- 20 10 5) (car (quote (47 11)) ) ) )");
 
 try {
   w.run();
