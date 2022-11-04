@@ -80,16 +80,17 @@ export class WebLISP {
                   i++;
                 }
                 return SExpr.atomINT(res);
-
               case "QUOTE":
               case "WRITE":
               case "CAR":
               case "CDR":
+              case "LENGTH":
                 if (
                   sexpr.cdr.type === SExprType.NIL ||
                   sexpr.cdr.cdr.type !== SExprType.NIL
-                )
+                ) {
                   throw new RunError("expected one argument");
+                }
                 switch (op) {
                   case "QUOTE":
                     return sexpr.cdr.car;
@@ -98,15 +99,24 @@ export class WebLISP {
                     console.log(t.toString());
                     return t;
                   case "CAR":
-                    s = this.eval(sexpr.cdr.car);
-                    if (s.type !== SExprType.CONS)
-                      throw new RunError("CAR expects a list");
-                    return s.car;
                   case "CDR":
+                  case "LENGTH":
                     s = this.eval(sexpr.cdr.car);
                     if (s.type !== SExprType.CONS)
                       throw new RunError("CAR expects a list");
-                    return s.cdr;
+                    switch (op) {
+                      case "CAR":
+                        return s.car;
+                      case "CDR":
+                        return s.cdr;
+                      case "LENGTH":
+                        i = 0;
+                        while (s.type == SExprType.CONS) {
+                          i++;
+                          s = s.cdr;
+                        }
+                        return SExpr.atomINT(i);
+                    }
                 }
 
               default:
@@ -134,7 +144,8 @@ export class RunError extends Error {
 
 // TODO: move the following to a new test file
 const w = new WebLISP();
-w.import("(write (+ 3 4 (* 5 6) 7 8 (- 20 10 5) (car (quote (47 11)) ) ) )");
+//w.import("(write (+ 3 4 (* 5 6) 7 8 (- 20 10 5) (car (quote (47 11)) ) ) )");
+w.import("(write (length (quote (3 4 5 6 7 8))))");
 
 try {
   w.run();
