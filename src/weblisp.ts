@@ -46,7 +46,7 @@ export class WebLISP {
     }
     // evaluate
     let res: number;
-    let s, t: SExpr;
+    let s, t, car, cdr: SExpr;
     let op = "";
     let i = 0;
 
@@ -60,26 +60,7 @@ export class WebLISP {
           case SExprType.ID:
             op = sexpr.car.data as string;
             switch (op) {
-              case "+":
-              case "-":
-              case "*":
-                res = op === "*" ? 1 : 0;
-                (s = sexpr.cdr), (i = 0);
-                while (s.type == SExprType.CONS) {
-                  t = this.eval(s.car);
-                  switch (t.type) {
-                    case SExprType.INT:
-                      if (op === "*") res *= t.data as number;
-                      else res += t.data as number;
-                      break;
-                    default:
-                      throw new RunError(t.toString() + " is not a number");
-                  }
-                  if (i == 0 && op === "-") res = -res;
-                  s = s.cdr;
-                  i++;
-                }
-                return SExpr.atomINT(res);
+              // -- one argument --
               case "QUOTE":
               case "WRITE":
               case "CAR":
@@ -118,6 +99,43 @@ export class WebLISP {
                         return SExpr.atomINT(i);
                     }
                 }
+              // -- two arguments --
+              case "CONS":
+                if (
+                  sexpr.cdr.type === SExprType.NIL ||
+                  sexpr.cdr.cdr.type === SExprType.NIL ||
+                  sexpr.cdr.cdr.cdr.type !== SExprType.NIL
+                ) {
+                  throw new RunError("expected two arguments");
+                }
+                car = this.eval(sexpr.cdr.car);
+                cdr = this.eval(sexpr.cdr.cdr.car);
+                return SExpr.cons(car, cdr);
+              // -- n arguments (n >= 0) --
+              case "+":
+              case "-":
+              case "*":
+                res = op === "*" ? 1 : 0;
+                (s = sexpr.cdr), (i = 0);
+                while (s.type == SExprType.CONS) {
+                  t = this.eval(s.car);
+                  switch (t.type) {
+                    case SExprType.INT:
+                      if (op === "*") res *= t.data as number;
+                      else res += t.data as number;
+                      break;
+                    default:
+                      throw new RunError(t.toString() + " is not a number");
+                  }
+                  if (i == 0 && op === "-") res = -res;
+                  s = s.cdr;
+                  i++;
+                }
+                return SExpr.atomINT(res);
+              // -- n arguments (n >= 1) --
+              case ">":
+                xx;
+                break;
 
               default:
                 throw new RunError("unimplemented!!"); // TODO: some cases are errors
@@ -145,7 +163,8 @@ export class RunError extends Error {
 // TODO: move the following to a new test file
 const w = new WebLISP();
 //w.import("(write (+ 3 4 (* 5 6) 7 8 (- 20 10 5) (car (quote (47 11)) ) ) )");
-w.import("(write (length (quote (3 4 5 6 7 8))))");
+//w.import("(write (length (quote (3 4 5 6 7 8))))");
+w.import("(write (cons 3 4))");
 
 try {
   w.run();
