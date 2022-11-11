@@ -45,10 +45,11 @@ export class WebLISP {
       throw new RunError("max allowed runtime exceeded!");
     }
     // evaluate
-    let res: number;
+    let res, u, v: number;
     let s, t, car, cdr: SExpr;
     let op = "";
     let i = 0;
+    let b = true;
 
     switch (sexpr.type) {
       case SExprType.NIL:
@@ -66,6 +67,7 @@ export class WebLISP {
               case "CAR":
               case "CDR":
               case "LENGTH":
+              case "SIN":
                 if (
                   sexpr.cdr.type === SExprType.NIL ||
                   sexpr.cdr.cdr.type !== SExprType.NIL
@@ -76,9 +78,9 @@ export class WebLISP {
                   case "QUOTE":
                     return sexpr.cdr.car;
                   case "WRITE":
-                    t = this.eval(sexpr.cdr.car);
-                    console.log(t.toString());
-                    return t;
+                    s = this.eval(sexpr.cdr.car);
+                    console.log(s.toString());
+                    return s;
                   case "CAR":
                   case "CDR":
                   case "LENGTH":
@@ -98,6 +100,10 @@ export class WebLISP {
                         }
                         return SExpr.atomINT(i);
                     }
+                  case "SIN":
+                    s = this.eval(sexpr.cdr.car);
+                    if (s.type !== SExprType.FLOAT) xx;
+                    return SExpr.atomFLOAT(Math.sin(s));
                 }
               // -- two arguments --
               case "CONS":
@@ -134,20 +140,47 @@ export class WebLISP {
                 return SExpr.atomINT(res);
               // -- n arguments (n >= 1) --
               case ">":
-                xx;
-                break;
+              case ">=":
+              case "<":
+              case "<=":
+                b = true;
+                u = op === ">" || op === ">=" ? Infinity : -Infinity;
+                (s = sexpr.cdr), (i = 0);
+                while (s.type == SExprType.CONS) {
+                  t = this.eval(s.car);
+                  switch (t.type) {
+                    case SExprType.INT:
+                      v = t.data as number;
+                      if (
+                        (op === ">" && v >= u) ||
+                        (op === ">=" && v > u) ||
+                        (op === "<" && v <= u) ||
+                        (op === "<=" && v < u)
+                      ) {
+                        b = false;
+                        break;
+                      } else u = v;
+                      break;
+                    default:
+                      throw new RunError(t.toString() + " is not a number");
+                  }
+                  s = s.cdr;
+                  i++;
+                }
+                if (i == 0) throw new RunError("too few args");
+                return b ? SExpr.atomT() : SExpr.atomNIL();
 
               default:
-                throw new RunError("unimplemented!!"); // TODO: some cases are errors
+                throw new RunError("unimplemented / error!!"); // TODO
             }
             break;
           default:
-            throw new RunError("unimplemented!!"); // TODO: some cases are errors
+            throw new RunError("unimplemented / error!!"); // TODO
         }
         break;
 
       default:
-        throw new RunError("unimplemented!!");
+        throw new RunError("unimplemented / error!!"); // TODO
     }
     return null;
   }
@@ -164,7 +197,8 @@ export class RunError extends Error {
 const w = new WebLISP();
 //w.import("(write (+ 3 4 (* 5 6) 7 8 (- 20 10 5) (car (quote (47 11)) ) ) )");
 //w.import("(write (length (quote (3 4 5 6 7 8))))");
-w.import("(write (cons 3 4))");
+//w.import("(write (cons 3 4))");
+w.import("(write (<= 3 3 5 3 3 3))");
 
 try {
   w.run();
