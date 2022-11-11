@@ -6,6 +6,7 @@ export enum SExprType {
   INT = "INT", // atom
   ID = "ID", // atom
   STR = "STR", // atom
+  T = "T", // atom
 }
 
 export class SExpr {
@@ -51,6 +52,10 @@ export class SExpr {
     return s;
   }
 
+  static atomT(srcRow = -1, srcCol = -1): SExpr {
+    return new SExpr(SExprType.T, srcRow, srcCol);
+  }
+
   /**
    * Converts an s-expr to a string.
    * @returns
@@ -59,6 +64,8 @@ export class SExpr {
     switch (this.type) {
       case SExprType.NIL:
         return "NIL";
+      case SExprType.T:
+        return "T";
       case SExprType.INT:
         return "" + (this.data as number);
       case SExprType.ID:
