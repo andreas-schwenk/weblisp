@@ -5,7 +5,7 @@ import * as assert from "assert";
 import { Lexer } from "./lex";
 
 let src = `
-(* (+ 21 31) ; comment
+(* (+ 21 1.2 . 31) ; comment
     41)
 `;
 const lex = new Lexer(src);
