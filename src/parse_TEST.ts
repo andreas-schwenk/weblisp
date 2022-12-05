@@ -5,13 +5,18 @@ import { Lexer } from "./lex";
 
 import { Parser } from "./parse";
 
-let src = `
+let src = "(+ 1.5 2)";
+let lex = new Lexer(src);
+let sexpr = Parser.parse(lex);
+assert.ok(sexpr.toString() === src);
+
+src = `
 (* (+ 21 31) ; comment
     41)
 `;
 let exp = "(* (+ 21 31) 41)";
-let lex = new Lexer(src);
-let sexpr = Parser.parse(lex);
+lex = new Lexer(src);
+sexpr = Parser.parse(lex);
 assert.ok(sexpr.length == 1);
 assert.ok(sexpr[0].toString() === exp);
 
