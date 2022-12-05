@@ -1,17 +1,10 @@
 /* webLISP, 2022 by Andreas Schwenk */
 
-export enum SExprType {
-  CONS = "CONS", // car, cdr
-  NIL = "NIL", // atom
-  INT = "INT", // atom
-  ID = "ID", // atom
-  STR = "STR", // atom
-  T = "T", // atom
-}
+import { Ratio, SExprType } from "./types";
 
 export class SExpr {
   type: SExprType;
-  data: number | string;
+  data: number | string | Ratio;
   car: SExpr = null; // only valid, if type == SExprType.Cons
   cdr: SExpr = null; // only valid, if type == SExprType.Cons
   srcRow = -1;
@@ -36,6 +29,23 @@ export class SExpr {
 
   static atomINT(value: number, srcRow = -1, srcCol = -1): SExpr {
     const s = new SExpr(SExprType.INT, srcRow, srcCol);
+    s.data = value;
+    return s;
+  }
+
+  static atomRATIO(
+    nominator: number,
+    denominator: number,
+    srcRow = -1,
+    srcCol = -1
+  ): SExpr {
+    const s = new SExpr(SExprType.INT, srcRow, srcCol);
+    s.data = new Ratio(nominator, denominator);
+    return s;
+  }
+
+  static atomFLOAT(value: number, srcRow = -1, srcCol = -1): SExpr {
+    const s = new SExpr(SExprType.FLOAT, srcRow, srcCol);
     s.data = value;
     return s;
   }
@@ -68,6 +78,10 @@ export class SExpr {
         return "T";
       case SExprType.INT:
         return "" + (this.data as number);
+      case SExprType.FLOAT:
+        return "" + (this.data as number);
+      case SExprType.RATIO:
+        return "" + (this.data as Ratio).toString();
       case SExprType.ID:
       case SExprType.STR:
         return this.data as string;
