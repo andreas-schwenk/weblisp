@@ -55,6 +55,7 @@ export class WebLISP {
     switch (sexpr.type) {
       case T.NIL:
       case T.INT:
+      case T.FLOAT:
         return sexpr;
 
       case T.CONS:
@@ -163,7 +164,7 @@ export class WebLISP {
                     let u =
                       res.type === T.RATIO
                         ? (res.data as Ratio).toFloat()
-                        : (t.data as number);
+                        : (res.data as number);
                     let v =
                       t.type === T.RATIO
                         ? (t.data as Ratio).toFloat()
@@ -321,7 +322,7 @@ const w = new WebLISP();
 //w.import("(write (sin 1))");
 //w.import("(write (/ 4 6 2 3 4))");
 
-// TODO: (/ (/ 3.0))
+w.import("(write (+ 1.1 2.5))");
 
 try {
   w.run();
