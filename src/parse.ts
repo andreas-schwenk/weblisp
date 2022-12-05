@@ -1,7 +1,8 @@
 /* webLISP, 2022 by Andreas Schwenk */
 
 import { Lexer } from "./lex";
-import { SExpr, SExprType } from "./sexpr";
+import { SExpr } from "./sexpr";
+import { SExprType } from "./types";
 
 export class Parser {
   public static parse(lexer: Lexer): SExpr[] {
