@@ -44,24 +44,19 @@ export class Lexer {
       switch (ch) {
         case " ":
         case "\t":
-          this.pos++;
-          this.col += ch == "\t" ? 4 : 1;
+          this.pos++, (this.col += ch == "\t" ? 4 : 1);
           break;
         case "\n":
-          this.pos++;
-          this.row++;
-          this.col = 1;
+          this.pos++, this.row++, (this.col = 1);
           if (comment) comment = false;
           break;
         case ";":
-          this.pos++;
-          this.col++;
+          this.pos++, this.col++;
           comment = true;
           break;
         default:
           if (comment) {
-            this.pos++;
-            this.col++;
+            this.pos++, this.col++;
           } else stop = true;
       }
       if (stop) break;
@@ -69,7 +64,7 @@ export class Lexer {
     // set token position
     this.tokenCol = this.col;
     this.tokenRow = this.row;
-    // ID | INT | DEL
+    // ID | INT | REAL | DEL
     this.token = "";
     for (;;) {
       if (this.pos >= this.len) {
@@ -81,7 +76,8 @@ export class Lexer {
       if (
         (ch >= "A" && ch <= "Z") ||
         (ch >= "a" && ch <= "z") ||
-        (ch >= "0" && ch <= "9")
+        (ch >= "0" && ch <= "9") ||
+        ch == "."
       ) {
         this.pos++;
         this.col++;
