@@ -3,6 +3,19 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Run Tests",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/test/test.ts",
+      "args": [""],
+      "sourceMaps": true,
+      "preLaunchTask": "tsc: build - tsconfig.json",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Run Current TypeScript (TS) File",
       "runtimeExecutable": "node",
       "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
