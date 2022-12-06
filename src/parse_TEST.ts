@@ -37,6 +37,7 @@ let src_arr = [
   "(>= a b) -> (>= A B)",
   "() -> NIL",
   "NIL -> NIL",
+  "'(+ 2 3)",
 ];
 
 for (let src of src_arr) {
