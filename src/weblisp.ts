@@ -10,11 +10,14 @@ LISP tutorials:
 import { Lexer } from "./lex";
 import { Parser } from "./parse";
 import { SExpr } from "./sexpr";
-import { Ratio, SExprType as T } from "./types";
+import { Ratio, SExprType, SExprType as T } from "./types";
 
 export class WebLISP {
   private output = "";
   private program: SExpr[] = [];
+
+  private functions: { [id: string]: SExpr } = {};
+  private variables: { [id: string]: SExpr }[] = [{}];
 
   private startTime = 0;
   private maxSeconds = Infinity;
@@ -28,13 +31,17 @@ export class WebLISP {
     return this.output;
   }
 
-  public run(maxSeconds = Infinity): void {
+  public run(maxSeconds = Infinity): SExpr[] {
     this.output = "";
+    this.functions = {};
+    this.variables = [{}];
     this.startTime = Date.now();
     this.maxSeconds = maxSeconds;
+    const res: SExpr[] = [];
     for (const sexpr of this.program) {
-      this.eval(sexpr);
+      res.push(this.eval(sexpr));
     }
+    return res;
   }
 
   private eval(sexpr: SExpr): SExpr {
@@ -46,23 +53,64 @@ export class WebLISP {
       throw new RunError("max allowed runtime exceeded!");
     }
     // evaluate
-    let u, v: number;
-    let s, t, car, cdr, res: SExpr;
+    let x, y, n: number;
+    let s, t, u, v, res: SExpr;
     let op = "";
     let i = 0;
     let b = true;
+    let id: string;
 
     switch (sexpr.type) {
       case T.NIL:
+      case T.T:
       case T.INT:
+      case T.RATIO:
       case T.FLOAT:
         return sexpr;
+
+      case T.ID:
+        id = sexpr.data as string;
+        n = this.variables.length;
+        for (let i = n - 1; i >= 0; i--)
+          if (id in this.variables[i]) return this.variables[i][id];
+        throw new RunError("unknown symbol " + id);
 
       case T.CONS:
         switch (sexpr.car.type) {
           case T.ID:
             op = sexpr.car.data as string;
             switch (op) {
+              // -- if --
+              case "IF":
+                // TODO: check for too many params
+                if (sexpr.cdr.type === T.NIL || sexpr.cdr.cdr.type === T.NIL)
+                  throw new RunError(
+                    "expected at least two arguments for " + op
+                  );
+                const cond = this.eval(sexpr.cdr.car);
+                const codeT = sexpr.cdr.cdr.car;
+                const codeF =
+                  sexpr.cdr.cdr.cdr.type === T.NIL
+                    ? null
+                    : sexpr.cdr.cdr.cdr.car;
+                if (cond.type !== SExprType.NIL) return this.eval(codeT);
+                else if (codeF != null) return this.eval(codeF);
+                break;
+              // -- defun --
+              case "DEFUN":
+                if (
+                  sexpr.cdr.type === T.NIL ||
+                  sexpr.cdr.car.type !== SExprType.ID
+                )
+                  throw new RunError("expected function ID");
+                if (
+                  sexpr.cdr.cdr.type === T.NIL ||
+                  sexpr.cdr.cdr.car.type !== SExprType.CONS
+                )
+                  throw new RunError("expected parameter list after ID");
+                const id = sexpr.cdr.car.data as string;
+                this.functions[id] = sexpr.cdr.cdr;
+                return SExpr.defun(id, sexpr.cdr.cdr);
               // -- one argument --
               case "QUOTE":
               case "WRITE":
@@ -72,20 +120,21 @@ export class WebLISP {
               case "SIN":
               case "COS":
               case "TAN":
-                if (sexpr.cdr.type === T.NIL || sexpr.cdr.cdr.type !== T.NIL) {
-                  throw new RunError("expected one argument");
-                }
+              case "THIRD":
+              case "LISTP":
+              case "NULL":
+              case "NOT":
+                if (sexpr.cdr.type === T.NIL || sexpr.cdr.cdr.type !== T.NIL)
+                  throw new RunError("expected one argument for " + op);
+                if (op === "QUOTE") return sexpr.cdr.car;
+                s = this.eval(sexpr.cdr.car);
                 switch (op) {
-                  case "QUOTE":
-                    return sexpr.cdr.car;
                   case "WRITE":
-                    s = this.eval(sexpr.cdr.car);
                     console.log(s.toString());
                     return s;
                   case "CAR":
                   case "CDR":
                   case "LENGTH":
-                    s = this.eval(sexpr.cdr.car);
                     if (s.type !== T.CONS)
                       throw new RunError("CAR expects a list");
                     switch (op) {
@@ -104,34 +153,88 @@ export class WebLISP {
                   case "SIN":
                   case "COS":
                   case "TAN":
-                    s = this.eval(sexpr.cdr.car);
                     if (s.type === T.INT || s.type === T.FLOAT)
-                      v = s.data as number;
+                      y = s.data as number;
                     else if (s.type === T.RATIO)
-                      v = (s.data as Ratio).toFloat();
+                      y = (s.data as Ratio).toFloat();
                     else new RunError(op + " expects a number");
                     switch (op) {
                       case "SIN":
-                        return SExpr.atomFLOAT(Math.sin(v));
+                        return SExpr.atomFLOAT(Math.sin(y));
                       case "COS":
-                        return SExpr.atomFLOAT(Math.cos(v));
+                        return SExpr.atomFLOAT(Math.cos(y));
                       case "TAN":
-                        return SExpr.atomFLOAT(Math.tan(v));
+                        return SExpr.atomFLOAT(Math.tan(y));
                     }
+                  case "THIRD":
+                    return SExpr.nth(s, 2);
+                  case "LISTP":
+                    return s.type === SExprType.CONS || s.type === SExprType.NIL
+                      ? SExpr.atomT()
+                      : SExpr.atomNIL();
+                  case "NULL":
+                  case "NOT":
+                    return s.type === SExprType.NIL
+                      ? SExpr.atomT()
+                      : SExpr.atomNIL();
                 }
+                break;
               // -- two arguments --
               case "CONS":
+              case "EQUALP":
                 if (
                   sexpr.cdr.type === T.NIL ||
                   sexpr.cdr.cdr.type === T.NIL ||
                   sexpr.cdr.cdr.cdr.type !== T.NIL
                 ) {
-                  throw new RunError("expected two arguments");
+                  throw new RunError("expected two arguments for " + op);
                 }
-                car = this.eval(sexpr.cdr.car);
-                cdr = this.eval(sexpr.cdr.cdr.car);
-                return SExpr.cons(car, cdr);
+                s = this.eval(sexpr.cdr.car);
+                t = this.eval(sexpr.cdr.cdr.car);
+                switch (op) {
+                  case "CONS":
+                    return SExpr.cons(s, t);
+                  case "EQUALP":
+                    return SExpr.equalp(s, t) ? SExpr.atomT() : SExpr.atomNIL();
+                }
+                break;
               // -- n arguments (n >= 0) --
+              case "LIST":
+                res = u = SExpr.atomNIL();
+                (s = sexpr.cdr), (i = 0);
+                while (s.type === T.CONS) {
+                  t = this.eval(s.car);
+                  v = SExpr.cons(t, SExpr.atomNIL());
+                  if (i == 0) {
+                    res = u = v;
+                  } else {
+                    u.cdr = v;
+                    u = u.cdr;
+                  }
+                  s = s.cdr;
+                  i++;
+                }
+                return res;
+              case "AND":
+                res = SExpr.atomT();
+                s = sexpr.cdr;
+                while (s.type === T.CONS) {
+                  t = this.eval(s.car);
+                  if (t.type === SExprType.NIL) return t;
+                  res = t;
+                  s = s.cdr;
+                }
+                return res;
+              case "OR":
+                res = SExpr.atomNIL();
+                s = sexpr.cdr;
+                while (s.type === T.CONS) {
+                  t = this.eval(s.car);
+                  if (t.type !== SExprType.NIL) return t;
+                  res = t;
+                  s = s.cdr;
+                }
+                return res;
               case "+":
               case "*":
                 res = SExpr.atomINT(op === "+" ? 0 : 1);
@@ -264,22 +367,22 @@ export class WebLISP {
               case "<":
               case "<=":
                 b = true;
-                u = op === ">" || op === ">=" ? Infinity : -Infinity;
+                x = op === ">" || op === ">=" ? Infinity : -Infinity;
                 (s = sexpr.cdr), (i = 0);
                 while (s.type == T.CONS) {
                   t = this.eval(s.car);
                   switch (t.type) {
                     case T.INT:
-                      v = t.data as number;
+                      y = t.data as number;
                       if (
-                        (op === ">" && v >= u) ||
-                        (op === ">=" && v > u) ||
-                        (op === "<" && v <= u) ||
-                        (op === "<=" && v < u)
+                        (op === ">" && y >= x) ||
+                        (op === ">=" && y > x) ||
+                        (op === "<" && y <= x) ||
+                        (op === "<=" && y < x)
                       ) {
                         b = false;
                         break;
-                      } else u = v;
+                      } else x = y;
                       break;
                     default:
                       throw new RunError(t.toString() + " is not a number");
@@ -291,7 +394,40 @@ export class WebLISP {
                 return b ? SExpr.atomT() : SExpr.atomNIL();
 
               default:
-                throw new RunError("unimplemented / error!!"); // TODO
+                // -- call user function --
+                const fun = this.functions[op];
+                if (fun == undefined)
+                  throw new RunError("unknown function " + op);
+                const params = fun.car;
+                const body = fun.cdr;
+                // open scope
+                const scope: { [id: string]: SExpr } = {};
+                this.variables.push(scope);
+                // create parameter variables
+                s = params;
+                t = sexpr.cdr;
+                while (s.type !== SExprType.NIL) {
+                  if (t.type === SExprType.NIL)
+                    throw new RunError("too few arguments");
+                  const paramId = s.car;
+                  if (paramId.type !== SExprType.ID)
+                    throw new RunError("parameter must be an ID");
+                  scope[paramId.data as string] = this.eval(t.car);
+                  s = s.cdr;
+                  t = t.cdr;
+                }
+                if (t.type !== SExprType.NIL)
+                  throw new RunError("too many arguments");
+                // run body code
+                res = SExpr.atomNIL();
+                s = body;
+                while (s.type !== SExprType.NIL) {
+                  res = this.eval(s.car);
+                  s = s.cdr;
+                }
+                // close scope
+                this.variables.pop();
+                return res;
             }
             break;
           default:
@@ -300,7 +436,7 @@ export class WebLISP {
         break;
 
       default:
-        throw new RunError("unimplemented / error!!"); // TODO
+        throw new RunError("unimplemented sexpr type " + sexpr.type);
     }
     return null;
   }
@@ -311,21 +447,4 @@ export class RunError extends Error {
     super("Error: " + msg);
     this.name = "RunError";
   }
-}
-
-// TODO: move the following to a new test file
-const w = new WebLISP();
-//w.import("(write (+ 3 4 (* 5 6) 7 8 (- 20 10 5) (car (quote (47 11)) ) ) )");
-//w.import("(write (length (quote (3 4 5 6 7 8))))");
-//w.import("(write (cons 3 4))");
-//w.import("(write (<= 3 3 5 3 3 3))");
-//w.import("(write (sin 1))");
-//w.import("(write (/ 4 6 2 3 4))");
-
-w.import("(write (+ 1.1 2.5))");
-
-try {
-  w.run();
-} catch (e) {
-  console.log(e);
 }
