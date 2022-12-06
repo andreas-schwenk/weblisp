@@ -13,11 +13,26 @@ export class Parser {
     return res;
   }
 
-  //G sexpr = "(" { sexpr } ")" | "NIL" | "." | INT | REAL | ID;
+  //G sexpr = "'" sexpr | "(" { sexpr } ")" | "T" | "NIL" | "." | INT | REAL | ID;
   private static parseRec(lexer: Lexer): SExpr {
-    if (lexer.getToken() === "NIL") {
+    if (lexer.getToken() === "T") {
+      const sexpr = SExpr.atomT(lexer.getRow(), lexer.getCol());
+      lexer.next();
+      return sexpr;
+    } else if (lexer.getToken() === "NIL") {
       const sexpr = SExpr.atomNIL(lexer.getRow(), lexer.getCol());
       lexer.next();
+      return sexpr;
+    } else if (lexer.getToken() === "'") {
+      // 'S -> (quote S)
+      lexer.next();
+      const s = this.parseRec(lexer);
+      let sexpr: SExpr = SExpr.cons(
+        SExpr.atomID("QUOTE"),
+        SExpr.cons(s, SExpr.atomNIL()),
+        lexer.getRow(),
+        lexer.getCol()
+      );
       return sexpr;
     } else if (lexer.getToken() === "(") {
       lexer.next();
@@ -63,11 +78,21 @@ export class Parser {
       const sexpr = SExpr.atomID(".", lexer.getRow(), lexer.getCol());
       lexer.next();
       return sexpr;
-    } else if (lexer.getToken()[0] >= "0" && lexer.getToken()[0] <= "9") {
+    } else if (
+      (lexer.getToken()[0] >= "0" && lexer.getToken()[0] <= "9") ||
+      (lexer.getToken().length > 1 && lexer.getToken()[0] == "-")
+    ) {
       const tk = lexer.getToken();
       let sexpr: SExpr;
       if (tk.includes("."))
         sexpr = SExpr.atomFLOAT(parseFloat(tk), lexer.getRow(), lexer.getCol());
+      else if (tk.includes("/"))
+        sexpr = SExpr.atomRATIO(
+          parseInt(tk.split("/")[0]),
+          parseInt(tk.split("/")[1]),
+          lexer.getRow(),
+          lexer.getCol()
+        );
       else sexpr = SExpr.atomINT(parseInt(tk), lexer.getRow(), lexer.getCol());
       lexer.next();
       return sexpr;
