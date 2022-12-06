@@ -1,0 +1,2 @@
+(equalp nil
+    (or))

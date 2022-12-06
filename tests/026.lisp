@@ -1,0 +1,2 @@
+(equalp T
+    (not nil))
