@@ -23,6 +23,13 @@ export class SExpr {
     return s;
   }
 
+  static defun(id: string, fun: SExpr, srcRow = -1, srcCol = -1): SExpr {
+    const s = new SExpr(SExprType.DEFUN, srcRow, srcCol);
+    s.car = SExpr.atomID(id);
+    s.cdr = fun;
+    return s;
+  }
+
   static atomNIL(srcRow = -1, srcCol = -1): SExpr {
     return new SExpr(SExprType.NIL, srcRow, srcCol);
   }
@@ -39,7 +46,7 @@ export class SExpr {
     srcRow = -1,
     srcCol = -1
   ): SExpr {
-    const s = new SExpr(SExprType.INT, srcRow, srcCol);
+    const s = new SExpr(SExprType.RATIO, srcRow, srcCol);
     s.data = new Ratio(nominator, denominator);
     return s;
   }
@@ -66,6 +73,53 @@ export class SExpr {
     return new SExpr(SExprType.T, srcRow, srcCol);
   }
 
+  static len(s: SExpr): number {
+    let i = 0;
+    while (s.type !== SExprType.NIL) {
+      s = s.cdr;
+      i++;
+    }
+    return i;
+  }
+
+  static nth(s: SExpr, idx: number): SExpr {
+    let i = 0;
+    while (s.type !== SExprType.NIL) {
+      if (i == idx) return s.car;
+      s = s.cdr;
+      i++;
+    }
+    return SExpr.atomNIL();
+  }
+
+  static equalp(u: SExpr, v: SExpr): boolean {
+    // TODO: allow e.g. u==INT and v==FLOAT
+    if (u.type !== v.type) return false;
+    switch (u.type) {
+      case SExprType.CONS:
+        if (SExpr.equalp(u.car, v.car) == false) return false;
+        if (SExpr.equalp(u.cdr, v.cdr) == false) return false;
+        break;
+      case SExprType.INT:
+        if ((u.data as number) !== (v.data as number)) return false;
+        break;
+      case SExprType.FLOAT:
+        const a = u.data as number;
+        const b = v.data as number;
+        // TODO: precision
+        if (Math.abs(a - b) > 1e-12) return false;
+        break;
+      case SExprType.RATIO:
+        if ((u.data as Ratio).compare(v.data as Ratio) == false) return false;
+        break;
+      case SExprType.ID:
+      case SExprType.STR:
+        if ((u.data as string) !== (v.data as string)) return false;
+        break;
+    }
+    return true;
+  }
+
   /**
    * Converts an s-expr to a string.
    * @returns
@@ -85,6 +139,8 @@ export class SExpr {
       case SExprType.ID:
       case SExprType.STR:
         return this.data as string;
+      case SExprType.DEFUN:
+        return this.car.data as string;
       case SExprType.CONS:
         let s = "(";
         let node = this as SExpr;
