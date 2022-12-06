@@ -77,7 +77,9 @@ export class Lexer {
         (ch >= "A" && ch <= "Z") ||
         (ch >= "a" && ch <= "z") ||
         (ch >= "0" && ch <= "9") ||
-        ch == "."
+        ch == "-" /* negative */ ||
+        ch == "." /* float */ ||
+        ch == "/" /* ratio */
       ) {
         this.pos++;
         this.col++;
