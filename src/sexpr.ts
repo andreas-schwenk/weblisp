@@ -16,6 +16,15 @@ export class SExpr {
     this.srcCol = srcCol;
   }
 
+  set(v: SExpr) {
+    this.type = v.type;
+    this.data = v.data;
+    this.car = v.car;
+    this.cdr = v.cdr;
+    this.srcRow = v.srcRow;
+    this.srcCol = v.srcCol;
+  }
+
   static cons(car: SExpr, cdr: SExpr, srcRow = -1, srcCol = -1): SExpr {
     const s = new SExpr(SExprType.CONS, srcRow, srcCol);
     s.car = car;
@@ -28,6 +37,12 @@ export class SExpr {
     s.car = SExpr.atomID(id);
     s.cdr = fun;
     return s;
+  }
+
+  static global(id: string, srcRow = -1, srcCol = -1): SExpr {
+    const g = new SExpr(SExprType.GLOBAL, srcRow, srcCol);
+    g.data = id;
+    return g;
   }
 
   static atomNIL(srcRow = -1, srcCol = -1): SExpr {
@@ -138,6 +153,7 @@ export class SExpr {
         return "" + (this.data as Ratio).toString();
       case SExprType.ID:
       case SExprType.STR:
+      case SExprType.GLOBAL:
         return this.data as string;
       case SExprType.DEFUN:
         return this.car.data as string;
