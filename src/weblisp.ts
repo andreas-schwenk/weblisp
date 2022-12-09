@@ -18,6 +18,7 @@ export class WebLISP {
 
   private functions: { [id: string]: SExpr } = {};
   private variables: { [id: string]: SExpr }[] = [{}];
+  private constants = new Set<string>(); // TODO: setf, ...
 
   private startTime = 0;
   private maxSeconds = Infinity;
@@ -35,6 +36,7 @@ export class WebLISP {
     this.output = "";
     this.functions = {};
     this.variables = [{}];
+    this.constants = new Set<string>();
     this.startTime = Date.now();
     this.maxSeconds = maxSeconds;
     const res: SExpr[] = [];
@@ -44,7 +46,7 @@ export class WebLISP {
     return res;
   }
 
-  private eval(sexpr: SExpr): SExpr {
+  private eval(sexpr: SExpr, createVar = false): SExpr {
     // check, if max time is reached
     if (
       this.maxSeconds != Infinity &&
@@ -71,9 +73,17 @@ export class WebLISP {
       case T.ID:
         id = sexpr.data as string;
         n = this.variables.length;
-        for (let i = n - 1; i >= 0; i--)
-          if (id in this.variables[i]) return this.variables[i][id];
-        throw new RunError("unknown symbol " + id);
+        for (let i = n - 1; i >= 0; i--) {
+          if (id in this.variables[i]) {
+            return this.variables[i][id];
+          }
+        }
+        if (createVar) {
+          this.variables[n - 1][id] = SExpr.atomNIL();
+          return this.variables[n - 1][id];
+        } else {
+          throw new RunError("unknown symbol " + id);
+        }
 
       case T.CONS:
         switch (sexpr.car.type) {
@@ -96,6 +106,52 @@ export class WebLISP {
                 if (cond.type !== SExprType.NIL) return this.eval(codeT);
                 else if (codeF != null) return this.eval(codeF);
                 break;
+              // -- let --
+              case "LET":
+                // TODO: LET vs LET*
+                res = SExpr.atomNIL();
+                const letScope: { [id: string]: SExpr } = {};
+                this.variables.push(letScope);
+                if (sexpr.cdr.type === T.NIL || sexpr.cdr.car.type !== T.CONS)
+                  throw new RunError("expected a list after LET");
+                s = sexpr.cdr.car;
+                while (s.type !== SExprType.NIL) {
+                  t = s.car;
+                  if (t.type !== T.CONS)
+                    throw new RunError("expected (ID SEXPR)");
+                  const id = t.car;
+                  if (id.type !== T.ID) throw new RunError("expected ID");
+                  if (t.cdr.type === SExprType.NIL)
+                    throw new RunError("expected SEXPR");
+                  const expr = this.eval(t.cdr.car);
+                  letScope[id.data as string] = expr;
+                  s = s.cdr;
+                }
+                s = sexpr.cdr.cdr;
+                while (s.type !== SExprType.NIL) {
+                  t = s.car;
+                  res = this.eval(t);
+                  s = s.cdr;
+                }
+                this.variables.pop();
+                return res;
+              // -- setf --
+              case "SETF":
+                res = SExpr.atomNIL();
+                s = sexpr.cdr;
+                while (s.type !== SExprType.NIL) {
+                  res = this.eval(s.car, true);
+                  s = s.cdr;
+                  if (s.type === SExprType.NIL)
+                    throw new RunError(
+                      "SETF requires an even number of arguments"
+                    );
+                  v = this.eval(s.car);
+                  res.set(v);
+                  s = s.cdr;
+                }
+                return res;
+                break;
               // -- defun --
               case "DEFUN":
                 if (
@@ -108,7 +164,7 @@ export class WebLISP {
                   sexpr.cdr.cdr.car.type !== SExprType.CONS
                 )
                   throw new RunError("expected parameter list after ID");
-                const id = sexpr.cdr.car.data as string;
+                id = sexpr.cdr.car.data as string;
                 this.functions[id] = sexpr.cdr.cdr;
                 return SExpr.defun(id, sexpr.cdr.cdr);
               // -- one argument --
@@ -124,6 +180,7 @@ export class WebLISP {
               case "LISTP":
               case "NULL":
               case "NOT":
+              case "NUMBERP":
                 if (sexpr.cdr.type === T.NIL || sexpr.cdr.cdr.type !== T.NIL)
                   throw new RunError("expected one argument for " + op);
                 if (op === "QUOTE") return sexpr.cdr.car;
@@ -177,11 +234,19 @@ export class WebLISP {
                     return s.type === SExprType.NIL
                       ? SExpr.atomT()
                       : SExpr.atomNIL();
+                  case "NUMBERP":
+                    return s.type === SExprType.INT ||
+                      s.type === SExprType.FLOAT ||
+                      s.type === SExprType.RATIO
+                      ? SExpr.atomT()
+                      : SExpr.atomNIL();
                 }
                 break;
               // -- two arguments --
               case "CONS":
               case "EQUALP":
+              case "DEFPARAMETER":
+              case "DEFCONSTANT":
                 if (
                   sexpr.cdr.type === T.NIL ||
                   sexpr.cdr.cdr.type === T.NIL ||
@@ -189,13 +254,24 @@ export class WebLISP {
                 ) {
                   throw new RunError("expected two arguments for " + op);
                 }
-                s = this.eval(sexpr.cdr.car);
+                s = sexpr.cdr.car;
+                if (["DEFPARAMETER", "DEFCONSTANT"].includes(op) == false)
+                  s = this.eval(s);
                 t = this.eval(sexpr.cdr.cdr.car);
                 switch (op) {
                   case "CONS":
                     return SExpr.cons(s, t);
                   case "EQUALP":
                     return SExpr.equalp(s, t) ? SExpr.atomT() : SExpr.atomNIL();
+                  case "DEFPARAMETER":
+                  case "DEFCONSTANT":
+                    if (s.type !== T.ID) throw new RunError("expected ID");
+                    id = s.data as string;
+                    this.variables[0][id] = t;
+                    if (op === "DEFCONSTANT") {
+                      this.constants.add(id);
+                    }
+                    return SExpr.global(id);
                 }
                 break;
               // -- n arguments (n >= 0) --
