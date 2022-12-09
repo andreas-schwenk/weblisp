@@ -10,6 +10,7 @@ export enum SExprType {
   STR = "STR", // atom
   T = "T", // atom
   DEFUN = "DEFUN", // car: id, cdr: fct
+  GLOBAL = "GLOBAL", // type: ID
 }
 
 function gcd(x: number, y: number): number {
