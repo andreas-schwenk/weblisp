@@ -247,6 +247,7 @@ export class WebLISP {
               case "EQUALP":
               case "DEFPARAMETER":
               case "DEFCONSTANT":
+              case "REMOVE":
                 if (
                   sexpr.cdr.type === T.NIL ||
                   sexpr.cdr.cdr.type === T.NIL ||
@@ -272,6 +273,8 @@ export class WebLISP {
                       this.constants.add(id);
                     }
                     return SExpr.global(id);
+                  case "REMOVE":
+                    return t.remove(s);
                 }
                 break;
               // -- n arguments (n >= 0) --
@@ -506,8 +509,13 @@ export class WebLISP {
                 return res;
             }
             break;
+          case T.INT:
+          case T.RATIO:
+          case T.FLOAT:
+          case T.STR:
+            throw new RunError("" + sexpr.car.data + " is not a function name"); // TODO
           default:
-            throw new RunError("unimplemented / error!!"); // TODO
+            throw new RunError("not allowed");
         }
         break;
 
