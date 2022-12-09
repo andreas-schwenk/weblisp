@@ -135,6 +135,32 @@ export class SExpr {
     return true;
   }
 
+  remove(key: SExpr): SExpr {
+    let res, t: SExpr;
+    res = SExpr.atomNIL();
+    let s = <SExpr>this;
+    let i = 0;
+    while (s.type !== SExprType.NIL) {
+      let element = s.car;
+      if (
+        element.type !== SExprType.CONS &&
+        element.type === key.type &&
+        element.data === key.data
+      ) {
+        /* skip */
+      } else {
+        if (i == 0) res = t = SExpr.cons(element, SExpr.atomNIL());
+        else {
+          t.cdr = SExpr.cons(element, SExpr.atomNIL());
+          t = t.cdr;
+        }
+      }
+      s = s.cdr;
+      i++;
+    }
+    return res;
+  }
+
   /**
    * Converts an s-expr to a string.
    * @returns
