@@ -72,37 +72,19 @@ export class Lexer {
         return;
       }
       let ch = this.src[this.pos];
-      if (ch == " " || ch == "\t" || ch == "\n" || ch == ";") return;
-      if (
-        (ch >= "A" && ch <= "Z") ||
-        (ch >= "a" && ch <= "z") ||
-        (ch >= "0" && ch <= "9") ||
-        ch == "-" /* negative */ ||
-        ch == "." /* float */ ||
-        ch == "/" /* ratio */
-      ) {
-        this.pos++;
-        this.col++;
-        this.token += ch.toUpperCase();
-      } else if (this.token.length == 0) {
+      if (ch == " " || ch == "\t" || ch == "\n" || ch == ";") {
+        return;
+      }
+      if (ch == "(" || ch == ")" || ch == "'") {
+        if (this.token.length > 0) return;
         this.pos++;
         this.col++;
         this.token = ch;
-        // TODO: improve the following multi-char code
-        if (ch == ">" || ch == "<") {
-          if (this.pos < this.len) {
-            let ch2 = this.src[this.pos];
-            if (ch2 == "=") {
-              this.pos++;
-              this.col++;
-              this.token += ch2;
-            }
-          }
-        }
-        return;
-      } else {
         return;
       }
+      this.pos++;
+      this.col++;
+      this.token += ch.toUpperCase();
     }
   }
 }
