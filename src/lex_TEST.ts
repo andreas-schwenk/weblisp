@@ -6,7 +6,7 @@ import { Lexer } from "./lex";
 
 let src = `
 (* (- 21 1.2 . 31) ; comment
-    41 -5)
+    41 -5 *blub* my-id x234)
 `;
 const lex = new Lexer(src);
 
