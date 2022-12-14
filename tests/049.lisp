@@ -1,0 +1,5 @@
+(setf l '(10 20 30 40 50))
+(setf n 0)
+(dolist (li l)
+    (setf n (+ n 1)))
+(equalp n (length l))
