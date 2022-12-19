@@ -13,7 +13,7 @@ export class Parser {
     return res;
   }
 
-  //G sexpr = "'" sexpr | "(" { sexpr } ")" | "T" | "NIL" | "." | INT | REAL | ID;
+  //G sexpr = "#'" sexpr | "'" sexpr | "(" { sexpr } ")" | "T" | "NIL" | "." | INT | REAL | ID;
   private static parseRec(lexer: Lexer): SExpr {
     if (lexer.getToken() === "T") {
       const sexpr = SExpr.atomT(lexer.getRow(), lexer.getCol());
@@ -22,6 +22,17 @@ export class Parser {
     } else if (lexer.getToken() === "NIL") {
       const sexpr = SExpr.atomNIL(lexer.getRow(), lexer.getCol());
       lexer.next();
+      return sexpr;
+    } else if (lexer.getToken() === "#'") {
+      // #'S -> (function S)
+      lexer.next();
+      const s = this.parseRec(lexer);
+      let sexpr: SExpr = SExpr.cons(
+        SExpr.atomID("FUNCTION"),
+        SExpr.cons(s, SExpr.atomNIL()),
+        lexer.getRow(),
+        lexer.getCol()
+      );
       return sexpr;
     } else if (lexer.getToken() === "'") {
       // 'S -> (quote S)
