@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="author" content="Andreas Schwenk">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="author" content="Andreas Schwenk" />
     <title>webLISP Playground</title>
     <link rel="stylesheet" href="Skeleton-2.0.4/css/skeleton.css" />
-    <script src="weblisp.min.js?v=1667318239"></script>
+
+    <link rel="stylesheet" href="xterm/xterm.css" />
+    <script src="xterm/xterm.js"></script>
+    <script src="xterm/xterm-addon-fit.js"></script>
+
+    <script src="weblisp.min.js?v=1671459641"></script>
   </head>
 
   <body>
@@ -14,17 +19,43 @@
       <div class="row">
         <h1>webLISP Playground</h1>
         <p>
-          webLISP is a nano Common-LISP implementation. 
-          Its main purpose is educational based.
-          Implemented operations:<br/>
+          webLISP is a nano Common-LISP implementation. Its main purpose is
+          educational based. Implemented operations:<br />
           <!-- the following list can be extracted by running python3 docs/get_ops.py -->
-          <code>&gt;</code>, <code>&lt;</code>, <code>*</code>, <code>+</code>, <code>-</code>, <code>/</code>, <code>car</code>, <code>cdr</code>, <code>cons</code>, <code>cos</code>, <code>defun</code>, <code>defvar</code>, <code>dotimes</code>, <code>exp</code>, <code>if</code>, <code>let</code>, <code>let*</code>, <code>max</code>, <code>min</code>, <code>random</code>, <code>setq</code>, <code>sin</code>, <code>sqrt</code>, <code>terpri</code>, <code>write</code>, <code>zerop</code>
+          <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>,
+          <code>&lt;=</code>, <code>*</code>, <code>+</code>, <code>-</code>,
+          <code>/</code>, <code>AND</code>, <code>APPLY</code>,
+          <code>CAR</code>, <code>CDR</code>, <code>CONS</code>,
+          <code>CONSP</code>, <code>COS</code>, <code>DEFCONSTANT</code>,
+          <code>DEFPARAMETER</code>, <code>DEFUN</code>, <code>DO</code>,
+          <code>DOLIST</code>, <code>EQUALP</code>, <code>FLOAT</code>,
+          <code>FUNCALL</code>, <code>FUNCTION</code>, <code>IF</code>,
+          <code>INTEGER</code>, <code>LAMBDA</code>, <code>LENGTH</code>,
+          <code>LET</code>, <code>LIST</code>, <code>LISTP</code>,
+          <code>NOT</code>, <code>NTH</code>, <code>NULL</code>,
+          <code>NUMBERP</code>, <code>OR</code>, <code>PROGN</code>,
+          <code>QUOTE</code>, <code>RATIO</code>, <code>REMOVE</code>,
+          <code>SETF</code>, <code>SIN</code>, <code>TAN</code>,
+          <code>TERPRI</code>, <code>THIRD</code>, <code>TYPEP</code>,
+          <code>WRITE</code>
           .
+          <!--
+          OLD LIST OF weblisp_old.js:
+          <code>&gt;</code>, <code>&lt;</code>, <code>*</code>, <code>+</code>,
+          <code>-</code>, <code>/</code>, <code>car</code>, <code>cdr</code>,
+          <code>cons</code>, <code>cos</code>, <code>defun</code>,
+          <code>defvar</code>, <code>dotimes</code>, <code>exp</code>,
+          <code>if</code>, <code>let</code>, <code>let*</code>,
+          <code>max</code>, <code>min</code>, <code>random</code>,
+          <code>setq</code>, <code>sin</code>, <code>sqrt</code>,
+          <code>terpri</code>, <code>write</code>, <code>zerop</code>
+          -->
+          <br />
         </p>
       </div>
 
       <div class="row">
-        <h2>Input</h2>
+        <h2>Program</h2>
         <textarea
           id="editor"
           class="u-full-width"
@@ -32,9 +63,8 @@
           spellcheck="false"
         ></textarea>
         <button type="button" onclick="run();">run</button>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        limit runtime to
-        <input id="maxRuntime" type="text" value="3" size="3"/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; limit runtime to
+        <input id="maxRuntime" type="text" value="3" size="3" />
         seconds
         <br />
       </div>
@@ -47,18 +77,64 @@
       </div>
 
       <br />
+
+      <div class="row">
+        <h2>Terminal</h2>
+        <div id="terminal" style="max-height: 256px"></div>
+      </div>
+
       <p>
         author:
-        <a href="https://arts-and-sciences.com"
-          >Andreas Schwenk</a
-        >
+        <a href="https://arts-and-sciences.com">Andreas Schwenk</a>
         license: GPLv3
       </p>
     </div>
 
     <script>
-      const example =
-`; this program calculates the Fibonacci number
+      var term = new Terminal({ cursorBlink: "block" });
+      var fitAddon = new FitAddon.FitAddon();
+      var line = "";
+      term.loadAddon(fitAddon);
+      term.open(document.getElementById("terminal"));
+      fitAddon.fit();
+
+      term.write("> ");
+      term.onKey((event) => {
+        let key = event.key;
+        console.log(event);
+        if (key === "\u007f") {
+          // backspace
+          term.write("\b \b");
+          line = line.substring(0, line.length - 1);
+        } else if (key === "\r") {
+          // return
+          term.write("\n\r");
+
+          const w = new weblisp.WebLISP();
+          const src = line;
+          let response = "";
+          try {
+            w.import(src);
+            let res = w.run(3);
+            response = w.output.replace(/\n/g, "<br/>");
+            if (res.length > 0) {
+              response += res[res.length - 1].toString();
+            }
+          } catch (error) {
+            response = "error:" + error;
+          }
+          term.write(response);
+          term.write("\r\n> ");
+
+          line = "";
+        } else {
+          term.write(key);
+          line += key;
+        }
+        console.log(">>" + line);
+      });
+
+      const example = `; this program calculates the Fibonacci number
 
 (defun fib (n)
   (if (< n 2)
@@ -68,28 +144,28 @@
 
 (write (fib 6))
 (terpri)
-`
-      document.getElementById('editor').value = example;
+`;
+      document.getElementById("editor").value = example;
 
       let worker = null;
 
       if (window.Worker) {
-        worker = new Worker('run.js');
+        worker = new Worker("run.js");
         worker.onmessage = (e) => {
-          document.getElementById('output').innerHTML = e.data;
-        }
+          document.getElementById("output").innerHTML = e.data;
+        };
       } else {
-        document.getElementById('output').innerHTML = 'error: your browser does not support web workers'
+        document.getElementById("output").innerHTML =
+          "error: your browser does not support web workers";
       }
 
       function run() {
-        if(worker == null) return;
-        document.getElementById('output').innerHTML = '... running';
-        let src = document.getElementById('editor').value;
-        maxRuntime = parseInt(document.getElementById('maxRuntime').value);
-        worker.postMessage({src: src, maxRuntime: maxRuntime});
+        if (worker == null) return;
+        document.getElementById("output").innerHTML = "... running";
+        let src = document.getElementById("editor").value;
+        maxRuntime = parseInt(document.getElementById("maxRuntime").value);
+        worker.postMessage({ src: src, maxRuntime: maxRuntime });
       }
-
     </script>
   </body>
 </html>
