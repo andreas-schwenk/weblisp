@@ -11,7 +11,7 @@
     <script src="xterm/xterm.js"></script>
     <script src="xterm/xterm-addon-fit.js"></script>
 
-    <script src="weblisp.min.js?v=1671459641"></script>
+    <script src="weblisp.min.js?v=1671465401"></script>
   </head>
 
   <body>
@@ -98,6 +98,8 @@
       term.open(document.getElementById("terminal"));
       fitAddon.fit();
 
+      const lisp = new weblisp.WebLISP();
+
       term.write("> ");
       term.onKey((event) => {
         let key = event.key;
@@ -110,13 +112,12 @@
           // return
           term.write("\n\r");
 
-          const w = new weblisp.WebLISP();
           const src = line;
           let response = "";
           try {
-            w.import(src);
-            let res = w.run(3);
-            response = w.output.replace(/\n/g, "<br/>");
+            lisp.import(src);
+            let res = lisp.run(false, 3);
+            response = lisp.output.replace(/\n/g, "<br/>");
             if (res.length > 0) {
               response += res[res.length - 1].toString();
             }
