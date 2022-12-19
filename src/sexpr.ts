@@ -97,6 +97,16 @@ export class SExpr {
     return i;
   }
 
+  static rest(s: SExpr, idx: number): SExpr {
+    let i = 0;
+    while (s.type !== SExprType.NIL) {
+      if (i == idx) return s;
+      s = s.cdr;
+      i++;
+    }
+    return SExpr.atomNIL();
+  }
+
   static nth(s: SExpr, idx: number): SExpr {
     let i = 0;
     while (s.type !== SExprType.NIL) {
@@ -105,6 +115,13 @@ export class SExpr {
       i++;
     }
     return SExpr.atomNIL();
+  }
+
+  static deepNth(s: SExpr, idxList: number[]): SExpr {
+    let res: SExpr = SExpr.atomNIL();
+    for (let i = 0; i < idxList.length && s.type !== SExprType.NIL; i++)
+      res = s = SExpr.nth(s, idxList[i]);
+    return res;
   }
 
   static equalp(u: SExpr, v: SExpr): boolean {
@@ -182,7 +199,7 @@ export class SExpr {
       case SExprType.GLOBAL:
         return this.data as string;
       case SExprType.DEFUN:
-        return this.car.data as string;
+        return "FUNCTION " + (this.car.data as string);
       case SExprType.CONS:
         let s = "(";
         let node = this as SExpr;
