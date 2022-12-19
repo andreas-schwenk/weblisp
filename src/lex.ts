@@ -76,10 +76,10 @@ export class Lexer {
         return;
       }
       if (ch == "(" || ch == ")" || ch == "'") {
-        if (this.token.length > 0) return;
+        if (this.token !== "#" && this.token.length > 0) return;
         this.pos++;
         this.col++;
-        this.token = ch;
+        this.token += ch;
         return;
       }
       this.pos++;
