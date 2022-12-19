@@ -35,11 +35,13 @@ export class WebLISP {
     return this.output;
   }
 
-  public run(maxSeconds = Infinity): SExpr[] {
+  public run(reset = true, maxSeconds = Infinity): SExpr[] {
     this.output = "";
-    this.functions = {};
-    this.variables = [{}];
-    this.constants = new Set<string>();
+    if (reset) {
+      this.functions = {};
+      this.variables = [{}];
+      this.constants = new Set<string>();
+    }
     this.startTime = Date.now();
     this.maxSeconds = maxSeconds;
     const res: SExpr[] = [];
