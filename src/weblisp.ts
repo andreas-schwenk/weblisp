@@ -13,6 +13,7 @@ import { SExpr } from "./sexpr";
 import { Ratio, SExprType, SExprType as T } from "./types";
 
 // TODO: use "NTH" and for-loops to make code better readable!
+// TODO: write code as for "DOLIST"
 
 export class WebLISP {
   private output = "";
@@ -57,13 +58,7 @@ export class WebLISP {
       throw new RunError("max allowed runtime exceeded!");
     }
     // evaluate
-    let x, y, n: number;
-    let s, t, u, v, res, init, cond, body: SExpr;
     let op = "";
-    let i = 0,
-      j = 0;
-    let b = true;
-    let id: string;
 
     switch (sexpr.type) {
       case T.NIL:
@@ -73,13 +68,11 @@ export class WebLISP {
       case T.FLOAT:
         return sexpr;
 
-      case T.ID:
-        id = sexpr.data as string;
-        n = this.variables.length;
+      case T.ID: {
+        const id = sexpr.data as string;
+        const n = this.variables.length;
         for (let i = n - 1; i >= 0; i--) {
-          if (id in this.variables[i]) {
-            return this.variables[i][id];
-          }
+          if (id in this.variables[i]) return this.variables[i][id];
         }
         if (createVar) {
           this.variables[n - 1][id] = SExpr.atomNIL();
@@ -87,91 +80,82 @@ export class WebLISP {
         } else {
           throw new RunError("unknown symbol " + id);
         }
+      }
 
       case T.CONS:
         switch (sexpr.car.type) {
           case T.ID:
             op = sexpr.car.data as string;
             switch (op) {
-              // -- if --
-              case "IF":
-                // TODO: check for too many params
-                if (sexpr.cdr.type === T.NIL || sexpr.cdr.cdr.type === T.NIL)
-                  throw new RunError(
-                    "expected at least two arguments for " + op
-                  );
-                cond = this.eval(sexpr.cdr.car);
-                const codeT = sexpr.cdr.cdr.car;
-                const codeF =
-                  sexpr.cdr.cdr.cdr.type === T.NIL
-                    ? null
-                    : sexpr.cdr.cdr.cdr.car;
-                if (cond.type !== SExprType.NIL) return this.eval(codeT);
-                else if (codeF != null) return this.eval(codeF);
-                break;
-              // -- let --
-              case "LET":
+              case "TERPRI": {
+                this.output += "\n";
+                return SExpr.atomNIL();
+              }
+              case "IF": {
+                // (IF cond codeT codeF)
+                if (SExpr.len(sexpr) < 3)
+                  throw new RunError("expected 2+ args for " + op);
+                if (this.eval(SExpr.nth(sexpr, 1)).type !== SExprType.NIL)
+                  return this.eval(SExpr.nth(sexpr, 2));
+                else return this.eval(SExpr.nth(sexpr, 3));
+              }
+              case "LET": {
                 // TODO: LET vs LET*
-                res = SExpr.atomNIL();
+                // (LET ((id init)*) expr*)
+                let res = SExpr.atomNIL();
                 const letScope: { [id: string]: SExpr } = {};
                 this.variables.push(letScope);
-                if (sexpr.cdr.type === T.NIL || sexpr.cdr.car.type !== T.CONS)
-                  throw new RunError("expected a list after LET");
-                s = sexpr.cdr.car;
-                while (s.type !== SExprType.NIL) {
-                  t = s.car;
-                  if (t.type !== T.CONS)
-                    throw new RunError("expected (ID SEXPR)");
-                  const id = t.car;
+                const id_init = SExpr.nth(sexpr, 1);
+                const expr = SExpr.rest(sexpr, 2);
+                for (let s = id_init; s.type !== SExprType.NIL; s = s.cdr) {
+                  if (SExpr.len(s.car) != 2)
+                    throw new RunError("expected (id init)");
+                  const id = SExpr.nth(s.car, 0);
                   if (id.type !== T.ID) throw new RunError("expected ID");
-                  if (t.cdr.type === SExprType.NIL)
-                    throw new RunError("expected SEXPR");
-                  const expr = this.eval(t.cdr.car);
-                  letScope[id.data as string] = expr;
-                  s = s.cdr;
+                  const init = this.eval(SExpr.nth(s.car, 1));
+                  letScope[id.data as string] = init;
                 }
-                s = sexpr.cdr.cdr;
-                while (s.type !== SExprType.NIL) {
-                  t = s.car;
-                  res = this.eval(t);
-                  s = s.cdr;
-                }
+                for (let s = expr; s.type !== SExprType.NIL; s = s.cdr)
+                  res = this.eval(s.car);
                 this.variables.pop();
                 return res;
+              }
               // -- setf --
-              case "SETF":
-                res = SExpr.atomNIL();
-                s = sexpr.cdr;
-                while (s.type !== SExprType.NIL) {
-                  res = this.eval(s.car, true);
-                  s = s.cdr;
-                  if (s.type === SExprType.NIL)
-                    throw new RunError(
-                      "SETF requires an even number of arguments"
-                    );
-                  v = this.eval(s.car);
-                  res.set(v);
-                  s = s.cdr;
+              case "SETF": {
+                // (SETF id expr id expr ...)
+                const n = SExpr.len(sexpr);
+                if ((n - 1) % 2 != 0)
+                  throw new RunError(
+                    "SETF requires an even number of arguments"
+                  );
+                let res = SExpr.atomNIL();
+                for (let s = sexpr.cdr; s.type !== SExprType.NIL; s = s.cdr) {
+                  const place = s.car;
+                  res = this.eval(place, true); // true := create if not exists
+                  s = s.cdr; // next
+                  const value = this.eval(s.car);
+                  res.set(value);
                 }
                 return res;
-                break;
+              }
               // -- do --
-              case "DO":
-                res = SExpr.atomNIL();
+              case "DO": {
+                // (DO init cond body*)
+                // init = ((id start update)*)
+                // cond = (condCore expr*)
+                let res = SExpr.atomNIL();
                 const doScope: { [id: string]: SExpr } = {};
                 this.variables.push(doScope);
-                s = sexpr.cdr;
-                init = SExpr.nth(s, 0);
-                cond = SExpr.nth(s, 1);
-                body = s.cdr.type == SExprType.NIL ? null : s.cdr.cdr;
+                const init = SExpr.nth(sexpr, 1);
+                const cond = SExpr.nth(sexpr, 2);
+                const body = SExpr.rest(sexpr, 3);
                 if (
                   init.type !== SExprType.CONS ||
                   cond.type !== SExprType.CONS
-                ) {
+                )
                   throw new RunError("DO is not well structured");
-                }
                 // init
-                for (t = init; t.type !== SExprType.NIL; t = t.cdr) {
+                for (let t = init; t.type !== SExprType.NIL; t = t.cdr) {
                   const id = SExpr.nth(t.car, 0);
                   if (id.type !== T.ID) throw new RunError("expected ID");
                   const expr = this.eval(SExpr.nth(t.car, 1));
@@ -182,24 +166,23 @@ export class WebLISP {
                   // condition
                   let doBreak = false;
                   for (
-                    j = 0, t = cond;
+                    let idx = 0, t = cond;
                     t.type !== SExprType.NIL;
-                    j++, t = t.cdr
+                    idx++, t = t.cdr
                   ) {
-                    u = this.eval(t.car);
-                    if (j == 0) {
+                    const u = this.eval(t.car);
+                    if (idx == 0) {
                       if (u.type === SExprType.T) doBreak = true;
                       else break;
                     }
-                    if (j > 0) res = u;
+                    if (idx > 0) res = u;
                   }
                   if (doBreak) break;
                   // body
-                  for (t = body; t.type !== SExprType.NIL; t = t.cdr) {
+                  for (let t = body; t.type !== SExprType.NIL; t = t.cdr)
                     this.eval(t.car);
-                  }
                   // update
-                  for (t = init; t.type !== SExprType.NIL; t = t.cdr) {
+                  for (let t = init; t.type !== SExprType.NIL; t = t.cdr) {
                     const id = SExpr.nth(t.car, 0);
                     const expr = this.eval(SExpr.nth(t.car, 2));
                     doScope[id.data as string] = expr;
@@ -207,22 +190,26 @@ export class WebLISP {
                 }
                 this.variables.pop();
                 return res;
-                break;
+              }
               // -- defun --
-              case "DEFUN":
+              case "DEFUN": {
+                // (DEFUN id (id*) expr*)
                 if (
-                  sexpr.cdr.type === T.NIL ||
-                  sexpr.cdr.car.type !== SExprType.ID
+                  SExpr.len(sexpr) < 3 ||
+                  SExpr.nth(sexpr, 1).type !== SExprType.ID ||
+                  SExpr.nth(sexpr, 2).type !== SExprType.CONS
                 )
-                  throw new RunError("expected function ID");
-                if (
-                  sexpr.cdr.cdr.type === T.NIL ||
-                  sexpr.cdr.cdr.car.type !== SExprType.CONS
-                )
-                  throw new RunError("expected parameter list after ID");
-                id = sexpr.cdr.car.data as string;
-                this.functions[id] = sexpr.cdr.cdr;
-                return SExpr.defun(id, sexpr.cdr.cdr);
+                  throw new RunError("DEFUN is not well structured");
+                const id = SExpr.nth(sexpr, 1).data as string;
+                const params_body = SExpr.rest(sexpr, 2);
+                this.functions[id] = params_body;
+                return SExpr.defun(id, params_body);
+              }
+              // -- lambda --
+              case "LAMBDA": {
+                const params_body = SExpr.rest(sexpr, 1);
+                return SExpr.defun("LAMBDA", params_body);
+              }
               // -- one argument --
               case "QUOTE":
               case "WRITE":
@@ -234,42 +221,55 @@ export class WebLISP {
               case "TAN":
               case "THIRD":
               case "LISTP":
+              case "CONSP":
               case "NULL":
               case "NOT":
               case "NUMBERP":
-                if (sexpr.cdr.type === T.NIL || sexpr.cdr.cdr.type !== T.NIL)
+              case "FUNCTION": {
+                if (SExpr.len(sexpr) != 2)
                   throw new RunError("expected one argument for " + op);
                 if (op === "QUOTE") return sexpr.cdr.car;
-                s = this.eval(sexpr.cdr.car);
+                if (op === "FUNCTION") {
+                  const idExpr = sexpr.cdr.car;
+                  if (idExpr.type !== SExprType.ID)
+                    throw new RunError("expected ID");
+                  const id = idExpr.data as string;
+                  if (id in this.functions == false)
+                    throw new RunError("undefined function " + (id as string));
+                  return SExpr.defun(id, this.functions[id as string]);
+                }
+                let param = this.eval(sexpr.cdr.car);
                 switch (op) {
                   case "WRITE":
-                    console.log(s.toString());
-                    return s;
+                    this.output += param.toString();
+                    console.log(param.toString());
+                    return param;
                   case "CAR":
                   case "CDR":
                   case "LENGTH":
-                    if (s.type !== T.CONS)
-                      throw new RunError("CAR expects a list");
+                    if (param.type !== T.CONS)
+                      throw new RunError(op + " expects a list");
                     switch (op) {
                       case "CAR":
-                        return s.car;
+                        return param.car;
                       case "CDR":
-                        return s.cdr;
+                        return param.cdr;
                       case "LENGTH":
-                        i = 0;
-                        while (s.type == T.CONS) {
+                        let i = 0;
+                        while (param.type == T.CONS) {
                           i++;
-                          s = s.cdr;
+                          param = param.cdr;
                         }
                         return SExpr.atomINT(i);
                     }
                   case "SIN":
                   case "COS":
                   case "TAN":
-                    if (s.type === T.INT || s.type === T.FLOAT)
-                      y = s.data as number;
-                    else if (s.type === T.RATIO)
-                      y = (s.data as Ratio).toFloat();
+                    let y;
+                    if (param.type === T.INT || param.type === T.FLOAT)
+                      y = param.data as number;
+                    else if (param.type === T.RATIO)
+                      y = (param.data as Ratio).toFloat();
                     else new RunError(op + " expects a number");
                     switch (op) {
                       case "SIN":
@@ -280,122 +280,154 @@ export class WebLISP {
                         return SExpr.atomFLOAT(Math.tan(y));
                     }
                   case "THIRD":
-                    return SExpr.nth(s, 2);
+                    return SExpr.nth(param, 2);
                   case "LISTP":
-                    return s.type === SExprType.CONS || s.type === SExprType.NIL
+                    return param.type === SExprType.CONS ||
+                      param.type === SExprType.NIL
+                      ? SExpr.atomT()
+                      : SExpr.atomNIL();
+                  case "CONSP":
+                    return param.type === SExprType.CONS
                       ? SExpr.atomT()
                       : SExpr.atomNIL();
                   case "NULL":
                   case "NOT":
-                    return s.type === SExprType.NIL
+                    return param.type === SExprType.NIL
                       ? SExpr.atomT()
                       : SExpr.atomNIL();
                   case "NUMBERP":
-                    return s.type === SExprType.INT ||
-                      s.type === SExprType.FLOAT ||
-                      s.type === SExprType.RATIO
+                    return param.type === SExprType.INT ||
+                      param.type === SExprType.FLOAT ||
+                      param.type === SExprType.RATIO
                       ? SExpr.atomT()
                       : SExpr.atomNIL();
                 }
-                break;
+              }
               // -- two arguments --
               case "CONS":
               case "EQUALP":
+              case "TYPEP":
               case "DEFPARAMETER":
               case "DEFCONSTANT":
               case "REMOVE":
-              case "NTH":
-                if (
-                  sexpr.cdr.type === T.NIL ||
-                  sexpr.cdr.cdr.type === T.NIL ||
-                  sexpr.cdr.cdr.cdr.type !== T.NIL
-                ) {
+              case "NTH": {
+                if (SExpr.len(sexpr) != 3)
                   throw new RunError("expected two arguments for " + op);
+                let param1 = sexpr.cdr.car;
+                if (["DEFPARAMETER", "DEFCONSTANT"].includes(op) == false) {
+                  param1 = this.eval(param1);
                 }
-                s = sexpr.cdr.car;
-                if (["DEFPARAMETER", "DEFCONSTANT"].includes(op) == false)
-                  s = this.eval(s);
-                t = this.eval(sexpr.cdr.cdr.car);
+                const param2 = this.eval(sexpr.cdr.cdr.car);
                 switch (op) {
-                  case "CONS":
-                    return SExpr.cons(s, t);
-                  case "EQUALP":
-                    return SExpr.equalp(s, t) ? SExpr.atomT() : SExpr.atomNIL();
-                  case "DEFPARAMETER":
-                  case "DEFCONSTANT":
-                    if (s.type !== T.ID) throw new RunError("expected ID");
-                    id = s.data as string;
-                    this.variables[0][id] = t;
-                    if (op === "DEFCONSTANT") {
-                      this.constants.add(id);
+                  case "CONS": {
+                    return SExpr.cons(param1, param2);
+                  }
+                  case "EQUALP": {
+                    return SExpr.equalp(param1, param2)
+                      ? SExpr.atomT()
+                      : SExpr.atomNIL();
+                  }
+                  case "TYPEP": {
+                    if (param2.type !== SExprType.ID)
+                      throw new RunError("expected ID as second param");
+                    switch (param2.data as string) {
+                      case "INTEGER":
+                        return param1.type === SExprType.INT
+                          ? SExpr.atomT()
+                          : SExpr.atomNIL();
+                      case "FLOAT":
+                        return param1.type === SExprType.FLOAT
+                          ? SExpr.atomT()
+                          : SExpr.atomNIL();
+                      case "RATIO":
+                        return param1.type === SExprType.RATIO
+                          ? SExpr.atomT()
+                          : SExpr.atomNIL();
+                      default:
+                        throw new RunError("unexpected TYPE " + param2.data);
                     }
+                  }
+                  case "DEFPARAMETER":
+                  case "DEFCONSTANT": {
+                    if (param1.type !== T.ID) throw new RunError("expected ID");
+                    const id = param1.data as string;
+                    this.variables[0][id] = param2;
+                    if (op === "DEFCONSTANT") this.constants.add(id);
                     return SExpr.global(id);
-                  case "REMOVE":
-                    return t.remove(s);
-                  case "NTH":
-                    if (s.type !== SExprType.INT || (s.data as number) < 0)
+                  }
+                  case "REMOVE": {
+                    return param2.remove(param1);
+                  }
+                  case "NTH": {
+                    // (NTH idx list)
+                    if (
+                      param1.type !== SExprType.INT ||
+                      (param1.data as number) < 0
+                    )
                       throw new RunError(
                         "expected a non-negative integer index"
                       );
-                    i = s.data as number;
-                    return SExpr.nth(t, i);
+                    return SExpr.nth(param2, param1.data as number);
+                  }
                 }
-                break;
+              }
               // -- n arguments (n >= 0) --
-              case "PROGN":
-                res = SExpr.atomNIL();
-                for (s = sexpr.cdr; s.type === T.CONS; s = s.cdr) {
+              case "PROGN": {
+                let res = SExpr.atomNIL();
+                for (let s = sexpr.cdr; s.type === T.CONS; s = s.cdr)
                   res = this.eval(s.car);
-                }
                 return res;
-              case "LIST":
+              }
+              case "LIST": {
+                let res, u: SExpr;
                 res = u = SExpr.atomNIL();
-                (s = sexpr.cdr), (i = 0);
-                while (s.type === T.CONS) {
-                  t = this.eval(s.car);
-                  v = SExpr.cons(t, SExpr.atomNIL());
-                  if (i == 0) {
-                    res = u = v;
-                  } else {
+                for (
+                  let s = sexpr.cdr, i = 0;
+                  s.type === T.CONS;
+                  s = s.cdr, i++
+                ) {
+                  const t = this.eval(s.car);
+                  const v = SExpr.cons(t, SExpr.atomNIL());
+                  if (i == 0) res = u = v;
+                  else {
                     u.cdr = v;
                     u = u.cdr;
                   }
-                  s = s.cdr;
-                  i++;
                 }
                 return res;
-              case "AND":
-                res = SExpr.atomT();
-                s = sexpr.cdr;
-                while (s.type === T.CONS) {
-                  t = this.eval(s.car);
+              }
+              case "AND": {
+                let res = SExpr.atomT();
+                for (let s = sexpr.cdr; s.type === T.CONS; s = s.cdr) {
+                  const t = this.eval(s.car);
                   if (t.type === SExprType.NIL) return t;
                   res = t;
-                  s = s.cdr;
                 }
                 return res;
-              case "OR":
-                res = SExpr.atomNIL();
-                s = sexpr.cdr;
-                while (s.type === T.CONS) {
-                  t = this.eval(s.car);
+              }
+              case "OR": {
+                let res = SExpr.atomNIL();
+                for (let s = sexpr.cdr; s.type === T.CONS; s = s.cdr) {
+                  const t = this.eval(s.car);
                   if (t.type !== SExprType.NIL) return t;
                   res = t;
-                  s = s.cdr;
                 }
                 return res;
+              }
               case "+":
-              case "*":
-                res = SExpr.atomINT(op === "+" ? 0 : 1);
-                (s = sexpr.cdr), (i = 0);
-                while (s.type === T.CONS) {
-                  t = this.eval(s.car);
+              case "*": {
+                let res = SExpr.atomINT(op === "+" ? 0 : 1);
+                for (
+                  let s = sexpr.cdr, i = 0;
+                  s.type === T.CONS;
+                  s = s.cdr, i++
+                ) {
+                  const t = this.eval(s.car);
                   if (res.type === T.INT && t.type === T.INT) {
                     if (op === "+") (res.data as number) += t.data as number;
                     else (res.data as number) *= t.data as number;
                   } else if (res.type === T.INT && t.type === T.RATIO) {
-                    let u: Ratio;
-                    u = Ratio.fromNumber(res.data as number);
+                    let u = Ratio.fromNumber(res.data as number);
                     let v = t.data as Ratio;
                     res.data = op === "+" ? Ratio.add(u, v) : Ratio.mul(u, v);
                     res.type = T.RATIO;
@@ -432,8 +464,6 @@ export class WebLISP {
                         " for op " +
                         op
                     );
-                  s = s.cdr;
-                  i++;
                 }
                 if (
                   res.type === T.RATIO &&
@@ -443,12 +473,16 @@ export class WebLISP {
                   res.type = T.INT;
                 }
                 return res;
+              }
               case "-":
-              case "/":
-                res = SExpr.atomINT(op === "-" ? 0 : 1);
-                (s = sexpr.cdr), (i = 0);
-                while (s.type === T.CONS) {
-                  t = this.eval(s.car);
+              case "/": {
+                let res = SExpr.atomINT(op === "-" ? 0 : 1);
+                for (
+                  let s = sexpr.cdr, i = 0;
+                  s.type === T.CONS;
+                  s = s.cdr, i++
+                ) {
+                  const t = this.eval(s.car);
                   if (i == 0 && s.cdr.type !== T.NIL) {
                     res.type = t.type;
                     res.data = t.data;
@@ -499,8 +533,6 @@ export class WebLISP {
                         " for op " +
                         op
                     );
-                  s = s.cdr;
-                  i++;
                 }
                 if (
                   res.type === T.RATIO &&
@@ -510,23 +542,42 @@ export class WebLISP {
                   res.type = T.INT;
                 }
                 return res;
+              }
               // -- n arguments (n >= 1) --
-              case "dolist":
-                res = SExpr.atomNIL();
-
+              case "DOLIST": {
+                // (DOLIST (id list) expr*)
+                let res = SExpr.atomNIL();
+                const scope: { [id: string]: SExpr } = {};
+                this.variables.push(scope);
+                const id = SExpr.deepNth(sexpr, [1, 0]);
+                if (id.type !== SExprType.ID) throw new RunError("expected ID");
+                let list = this.eval(SExpr.deepNth(sexpr, [1, 1]));
+                let expr = SExpr.rest(sexpr, 2);
+                while (list.type !== SExprType.NIL) {
+                  scope[id.data as string] = list.car;
+                  for (let e = expr; e.type !== SExprType.NIL; e = e.cdr)
+                    this.eval(e.car);
+                  list = list.cdr;
+                }
+                this.variables.pop();
                 return res;
+              }
               case ">":
               case ">=":
               case "<":
-              case "<=":
-                b = true;
-                x = op === ">" || op === ">=" ? Infinity : -Infinity;
-                (s = sexpr.cdr), (i = 0);
-                while (s.type == T.CONS) {
-                  t = this.eval(s.car);
+              case "<=": {
+                let b = true;
+                let x = op === ">" || op === ">=" ? Infinity : -Infinity;
+                let i;
+                for (
+                  let s = sexpr.cdr, i = 0;
+                  s.type == T.CONS;
+                  s = s.cdr, i++
+                ) {
+                  const t = this.eval(s.car);
                   switch (t.type) {
                     case T.INT:
-                      y = t.data as number;
+                      const y = t.data as number;
                       if (
                         (op === ">" && y >= x) ||
                         (op === ">=" && y > x) ||
@@ -540,63 +591,142 @@ export class WebLISP {
                     default:
                       throw new RunError(t.toString() + " is not a number");
                   }
-                  s = s.cdr;
-                  i++;
                 }
                 if (i == 0) throw new RunError("too few args");
                 return b ? SExpr.atomT() : SExpr.atomNIL();
-
-              default:
-                // -- call user function --
-                const fun = this.functions[op];
-                if (fun == undefined)
-                  throw new RunError("unknown function " + op);
-                const params = fun.car;
-                body = fun.cdr;
-                // open scope
+              }
+              case "APPLY":
+              case "FUNCALL": {
+                // TODO: test is sexpr.cdr.type != NIL and sexpr.cdr.cdr.type != NIL and
+                // (APPLY function parameterList)
+                const fun = this.eval(sexpr.cdr.car);
+                if (fun.type !== SExprType.DEFUN)
+                  throw new RunError("expected a function");
+                // create scope
                 const scope: { [id: string]: SExpr } = {};
                 this.variables.push(scope);
                 // create parameter variables
-                s = params;
-                t = sexpr.cdr;
-                while (s.type !== SExprType.NIL) {
-                  if (t.type === SExprType.NIL)
+                let arg, param: SExpr;
+                arg = sexpr.cdr.cdr;
+                if (op === "APPLY") arg = this.eval(arg.car);
+                for (
+                  param = fun.cdr.car;
+                  param.type !== SExprType.NIL;
+                  arg = arg.cdr, param = param.cdr
+                ) {
+                  if (arg.type === SExprType.NIL)
                     throw new RunError("too few arguments");
-                  const paramId = s.car;
+                  const paramId = param.car;
                   if (paramId.type !== SExprType.ID)
                     throw new RunError("parameter must be an ID");
-                  scope[paramId.data as string] = this.eval(t.car);
-                  s = s.cdr;
-                  t = t.cdr;
+                  scope[paramId.data as string] = this.eval(arg.car);
                 }
-                if (t.type !== SExprType.NIL)
+                if (arg.type !== SExprType.NIL)
                   throw new RunError("too many arguments");
                 // run body code
-                res = SExpr.atomNIL();
-                s = body;
-                while (s.type !== SExprType.NIL) {
-                  res = this.eval(s.car);
-                  s = s.cdr;
+                let res = SExpr.atomNIL();
+                for (
+                  let body = fun.cdr.cdr;
+                  body.type !== SExprType.NIL;
+                  body = body.cdr
+                ) {
+                  res = this.eval(body.car);
                 }
                 // close scope
                 this.variables.pop();
                 return res;
+              }
+              default: {
+                // -- call user function --
+                const fun = this.functions[op];
+                if (fun == undefined)
+                  throw new RunError("unknown function " + op);
+                // open scope
+                const scope: { [id: string]: SExpr } = {};
+                this.variables.push(scope);
+                // create parameter variables
+                let arg, param: SExpr;
+                for (
+                  arg = sexpr.cdr, param = fun.car;
+                  param.type !== SExprType.NIL;
+                  arg = arg.cdr, param = param.cdr
+                ) {
+                  if (arg.type === SExprType.NIL)
+                    throw new RunError("too few arguments");
+                  const paramId = param.car;
+                  if (paramId.type !== SExprType.ID)
+                    throw new RunError("parameter must be an ID");
+                  scope[paramId.data as string] = this.eval(arg.car);
+                }
+                if (arg.type !== SExprType.NIL)
+                  throw new RunError("too many arguments");
+                // run body code
+                let res = SExpr.atomNIL();
+                for (
+                  let body = fun.cdr;
+                  body.type !== SExprType.NIL;
+                  body = body.cdr
+                ) {
+                  res = this.eval(body.car);
+                }
+                // close scope
+                this.variables.pop();
+                return res;
+              }
             }
-            break;
           case T.INT:
           case T.RATIO:
           case T.FLOAT:
           case T.STR:
-            throw new RunError("" + sexpr.car.data + " is not a function name"); // TODO
+            throw new RunError("" + sexpr.car.data + " is not a function name");
+
+          case T.CONS: {
+            // TODO: checks
+            const fun = this.eval(sexpr.car);
+            if (fun.type !== SExprType.DEFUN)
+              throw new RunError("not a function");
+            const params = fun.cdr.car;
+            const args = sexpr.cdr;
+            // open scope
+            const scope: { [id: string]: SExpr } = {};
+            this.variables.push(scope);
+            // create parameter variables
+            let arg, param: SExpr;
+            for (
+              arg = args, param = params;
+              param.type !== SExprType.NIL;
+              arg = arg.cdr, param = param.cdr
+            ) {
+              if (arg.type === SExprType.NIL)
+                throw new RunError("too few arguments");
+              const paramId = param.car;
+              if (paramId.type !== SExprType.ID)
+                throw new RunError("parameter must be an ID");
+              scope[paramId.data as string] = this.eval(arg.car);
+            }
+            if (arg.type !== SExprType.NIL)
+              throw new RunError("too many arguments");
+            // run body code
+            let res = SExpr.atomNIL();
+            for (
+              let body = fun.cdr.cdr;
+              body.type !== SExprType.NIL;
+              body = body.cdr
+            ) {
+              res = this.eval(body.car);
+            }
+            // close scope
+            this.variables.pop();
+            return res;
+          }
+
           default:
             throw new RunError("not allowed");
         }
-        break;
 
       default:
         throw new RunError("unimplemented sexpr type " + sexpr.type);
     }
-    return null;
   }
 }
 
