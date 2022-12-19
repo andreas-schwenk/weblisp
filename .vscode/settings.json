@@ -3,6 +3,7 @@
   "cSpell.words": [
     "Andreas",
     "blub",
+    "CONSP",
     "DEFCONSTANT",
     "defparameter",
     "defun",
@@ -11,6 +12,7 @@
     "dotimes",
     "EQUALP",
     "esbuild",
+    "FUNCALL",
     "LISTP",
     "NUMBERP",
     "outfile",
@@ -21,6 +23,7 @@
     "sexpr",
     "symtab",
     "terpri",
+    "TYPEP",
     "weblisp",
     "zerop"
   ]
