@@ -3,6 +3,7 @@
   "cSpell.words": [
     "Andreas",
     "blub",
+    "codemirror",
     "CONSP",
     "DEFCONSTANT",
     "defparameter",
@@ -14,6 +15,7 @@
     "esbuild",
     "FUNCALL",
     "LISTP",
+    "nthcdr",
     "NUMBERP",
     "outfile",
     "PROGN",
