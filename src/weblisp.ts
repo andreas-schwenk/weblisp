@@ -15,6 +15,12 @@ import { Ratio, SExprType, SExprType as T } from "./types";
 // TODO: use "NTH" and for-loops to make code better readable!
 // TODO: write code as for "DOLIST"
 
+export class DebugInfo {
+  breakpointLine = 0;
+  col = 0;
+  variableValues: { [id: string]: string } = {};
+}
+
 export class WebLISP {
   private output = "";
   private program: SExpr[] = [];
@@ -26,6 +32,9 @@ export class WebLISP {
   private startTime = 0;
   private maxSeconds = Infinity;
 
+  private breakpoints = new Set<number>();
+  private debugInfo: DebugInfo[] = [];
+
   public import(input: string): void {
     const lexer = new Lexer(input);
     this.program = Parser.parse(lexer);
@@ -35,8 +44,17 @@ export class WebLISP {
     return this.output;
   }
 
+  public getDebugInfo(): DebugInfo[] {
+    return this.debugInfo;
+  }
+
+  public addBreakpoint(lineNo: number) {
+    this.breakpoints.add(lineNo);
+  }
+
   public run(reset = true, maxSeconds = Infinity): SExpr[] {
     this.output = "";
+    this.debugInfo = [];
     if (reset) {
       this.functions = {};
       this.variables = [{}];
@@ -52,6 +70,40 @@ export class WebLISP {
   }
 
   private eval(sexpr: SExpr, createVar = false): SExpr {
+    if (this.breakpoints.size > 0) {
+      if (this.breakpoints.has(sexpr.srcRow)) {
+        /*// TODO: message passing
+        let xhr = new XMLHttpRequest();
+        xhr.open("GET", "blub", false);
+        xhr.onload = function () {
+          //if (this.status >= 200 && this.status < 300) {
+          console.log(this.status);
+          //}
+        };
+        xhr.send(null);*/
+        const d = new DebugInfo();
+        if (this.debugInfo.length > 0) {
+          if (
+            this.debugInfo[this.debugInfo.length - 1].breakpointLine ==
+              sexpr.srcRow &&
+            this.debugInfo[this.debugInfo.length - 1].col != sexpr.srcCol
+          ) {
+            this.debugInfo.pop();
+          }
+        }
+        this.debugInfo.push(d);
+        d.breakpointLine = sexpr.srcRow;
+        d.col = sexpr.srcCol;
+        const n = this.variables.length;
+        for (let i = n - 1; i >= 0; i--) {
+          for (const id in this.variables[i]) {
+            const v = this.variables[i][id].toString();
+            if (id in d.variableValues) continue;
+            d.variableValues[id] = v;
+          }
+        }
+      }
+    }
     // check, if max time is reached
     if (
       this.maxSeconds != Infinity &&
@@ -73,15 +125,12 @@ export class WebLISP {
       case T.ID: {
         const id = sexpr.data as string;
         const n = this.variables.length;
-        for (let i = n - 1; i >= 0; i--) {
+        for (let i = n - 1; i >= 0; i--)
           if (id in this.variables[i]) return this.variables[i][id];
-        }
         if (createVar) {
           this.variables[n - 1][id] = SExpr.atomNIL();
           return this.variables[n - 1][id];
-        } else {
-          throw new RunError("unknown symbol " + id);
-        }
+        } else throw new RunError("unknown symbol " + id);
       }
 
       case T.CONS:
@@ -108,7 +157,7 @@ export class WebLISP {
                 const letScope: { [id: string]: SExpr } = {};
                 this.variables.push(letScope);
                 const id_init = SExpr.nth(sexpr, 1);
-                const expr = SExpr.rest(sexpr, 2);
+                const expr = SExpr.nthcdr(sexpr, 2);
                 for (let s = id_init; s.type !== SExprType.NIL; s = s.cdr) {
                   if (SExpr.len(s.car) != 2)
                     throw new RunError("expected (id init)");
@@ -150,7 +199,7 @@ export class WebLISP {
                 this.variables.push(doScope);
                 const init = SExpr.nth(sexpr, 1);
                 const cond = SExpr.nth(sexpr, 2);
-                const body = SExpr.rest(sexpr, 3);
+                const body = SExpr.nthcdr(sexpr, 3);
                 if (
                   init.type !== SExprType.CONS ||
                   cond.type !== SExprType.CONS
@@ -203,13 +252,13 @@ export class WebLISP {
                 )
                   throw new RunError("DEFUN is not well structured");
                 const id = SExpr.nth(sexpr, 1).data as string;
-                const params_body = SExpr.rest(sexpr, 2);
+                const params_body = SExpr.nthcdr(sexpr, 2);
                 this.functions[id] = params_body;
                 return SExpr.defun(id, params_body);
               }
               // -- lambda --
               case "LAMBDA": {
-                const params_body = SExpr.rest(sexpr, 1);
+                const params_body = SExpr.nthcdr(sexpr, 1);
                 return SExpr.defun("LAMBDA", params_body);
               }
               // -- one argument --
@@ -312,7 +361,8 @@ export class WebLISP {
               case "DEFPARAMETER":
               case "DEFCONSTANT":
               case "REMOVE":
-              case "NTH": {
+              case "NTH":
+              case "NTHCDR": {
                 if (SExpr.len(sexpr) != 3)
                   throw new RunError("expected two arguments for " + op);
                 let param1 = sexpr.cdr.car;
@@ -370,6 +420,17 @@ export class WebLISP {
                         "expected a non-negative integer index"
                       );
                     return SExpr.nth(param2, param1.data as number);
+                  }
+                  case "NTHCDR": {
+                    // (NTHCDR idx list)
+                    if (
+                      param1.type !== SExprType.INT ||
+                      (param1.data as number) < 0
+                    )
+                      throw new RunError(
+                        "expected a non-negative integer index"
+                      );
+                    return SExpr.nthcdr(param2, param1.data as number);
                   }
                 }
               }
@@ -554,7 +615,7 @@ export class WebLISP {
                 const id = SExpr.deepNth(sexpr, [1, 0]);
                 if (id.type !== SExprType.ID) throw new RunError("expected ID");
                 let list = this.eval(SExpr.deepNth(sexpr, [1, 1]));
-                let expr = SExpr.rest(sexpr, 2);
+                let expr = SExpr.nthcdr(sexpr, 2);
                 while (list.type !== SExprType.NIL) {
                   scope[id.data as string] = list.car;
                   for (let e = expr; e.type !== SExprType.NIL; e = e.cdr)
