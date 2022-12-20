@@ -11,7 +11,13 @@
     <script src="xterm/xterm.js"></script>
     <script src="xterm/xterm-addon-fit.js"></script>
 
-    <script src="weblisp.min.js?v=1671465401"></script>
+    <link rel="stylesheet" href="codemirror/codemirror.css" />
+    <script src="codemirror/codemirror.min.js"></script>
+    <script src="codemirror/mode/commonlisp.js"></script>
+
+    <script src="weblisp.min.js?v=1671551199"></script>
+
+    <style></style>
   </head>
 
   <body>
@@ -55,13 +61,30 @@
       </div>
 
       <div class="row">
-        <h2>Program</h2>
-        <textarea
+        <h2>Editor</h2>
+        <!--<textarea
           id="editor"
           class="u-full-width"
           style="width: 100%; min-height: 275px"
           spellcheck="false"
-        ></textarea>
+        ></textarea>-->
+
+        <div
+          style="
+            border-style: solid;
+            border-width: 1px;
+            border-color: black;
+            margin-bottom: 8px;
+          "
+        >
+          <textarea
+            id="editor"
+            class="u-full-width"
+            style="width: 100%; min-height: 275px"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
         <button type="button" onclick="run();">run</button>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; limit runtime to
         <input id="maxRuntime" type="text" value="3" size="3" />
@@ -91,6 +114,34 @@
     </div>
 
     <script>
+      var breakpoints = new Set();
+
+      // code mirror
+      var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+        lineNumbers: true,
+        mode: "text/x-common-lisp",
+        gutters: ["CodeMirror-linenumbers", "breakpoints"],
+      });
+      editor.on("gutterClick", function (cm, n) {
+        var info = cm.lineInfo(n);
+        if (info.gutterMarkers == null) breakpoints.add(info.line);
+        else breakpoints.delete(info.line);
+        cm.setGutterMarker(
+          n,
+          "breakpoints",
+          info.gutterMarkers ? null : makeMarker()
+        );
+      });
+      function makeMarker() {
+        var marker = document.createElement("div");
+        //marker.classList.add();
+        marker.style.color = "#822";
+        marker.style.paddingLeft = "0px";
+        marker.innerHTML = "&#x25cf;";
+        return marker;
+      }
+
+      // xterm
       var term = new Terminal({ cursorBlink: "block" });
       var fitAddon = new FitAddon.FitAddon();
       var line = "";
@@ -98,12 +149,13 @@
       term.open(document.getElementById("terminal"));
       fitAddon.fit();
 
+      // weblisp
       const lisp = new weblisp.WebLISP();
 
       term.write("> ");
       term.onKey((event) => {
         let key = event.key;
-        console.log(event);
+        //console.log(event);
         if (key === "\u007f") {
           // backspace
           term.write("\b \b");
@@ -111,7 +163,6 @@
         } else if (key === "\r") {
           // return
           term.write("\n\r");
-
           const src = line;
           let response = "";
           try {
@@ -126,8 +177,15 @@
           }
           term.write(response);
           term.write("\r\n> ");
-
           line = "";
+        } else if (key === "\u001b[A") {
+          // arrow up
+        } else if (key === "\u001b[B") {
+          // arrow down
+        } else if (key === "\u001b[C") {
+          // arrow right
+        } else if (key === "\u001b[D") {
+          // arrow left
         } else {
           term.write(key);
           line += key;
@@ -136,17 +194,15 @@
       });
 
       const example = `; this program calculates the Fibonacci number
-
 (defun fib (n)
   (if (< n 2)
       n
       (+ (fib (- n 1))
-         (fib (- n 2)))))
-
+          (fib (- n 2)))))
 (write (fib 6))
 (terpri)
 `;
-      document.getElementById("editor").value = example;
+      editor.setValue(example);
 
       let worker = null;
 
@@ -163,9 +219,14 @@
       function run() {
         if (worker == null) return;
         document.getElementById("output").innerHTML = "... running";
-        let src = document.getElementById("editor").value;
+        let src = editor.getValue();
+        //console.log(src);
         maxRuntime = parseInt(document.getElementById("maxRuntime").value);
-        worker.postMessage({ src: src, maxRuntime: maxRuntime });
+        worker.postMessage({
+          src: src,
+          breakpoints: Array.from(breakpoints),
+          maxRuntime: maxRuntime,
+        });
       }
     </script>
   </body>
