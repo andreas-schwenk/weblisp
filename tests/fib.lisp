@@ -4,4 +4,4 @@
       (+ (fib (- n 1))
          (fib (- n 2)))))
 
-(write (fib 6))
+(equalp 13 (fib 7))
