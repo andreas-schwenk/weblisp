@@ -5,6 +5,19 @@ import * as fs from "fs";
 import { WebLISP } from "../src/weblisp";
 import { SExprType } from "../src/types";
 
+const src = `(setf x 3)
+(+ x x)
+`;
+const w = new WebLISP();
+w.import(src);
+w.addBreakpoint(2);
+try {
+  const res = w.run();
+} catch (e) {
+  console.log(e);
+}
+const d = w.getDebugInfo();
+
 const path_list = glob.sync("tests/*.lisp").sort();
 for (const path of path_list) {
   console.log("===== " + path + " =====");
