@@ -97,7 +97,7 @@ export class SExpr {
     return i;
   }
 
-  static rest(s: SExpr, idx: number): SExpr {
+  static nthcdr(s: SExpr, idx: number): SExpr {
     let i = 0;
     while (s.type !== SExprType.NIL) {
       if (i == idx) return s;
