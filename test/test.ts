@@ -5,10 +5,18 @@ import * as fs from "fs";
 import { WebLISP } from "../src/weblisp";
 import { SExprType } from "../src/types";
 
-const src = `(setf x 3)
+//let src = "(write (car '(271 1337)))";
+//let src = "'(3 4 5 6 7 8)";
+let src = "(length '(3 4 5 6 7 8))";
+let w = new WebLISP();
+w.import(src);
+console.log(w.compile());
+process.exit(0);
+
+src = `(setf x 3)
 (+ x x)
 `;
-const w = new WebLISP();
+w = new WebLISP();
 w.import(src);
 w.addBreakpoint(2);
 try {
