@@ -178,6 +178,58 @@ export class SExpr {
     return res;
   }
 
+  static subst(newExpr: SExpr, oldExpr: SExpr, tree: SExpr): SExpr {
+    if (oldExpr.type === SExprType.CONS) return tree;
+    if (oldExpr.type === tree.type && oldExpr.data === tree.data)
+      return newExpr;
+    if (tree.type === SExprType.CONS) {
+      const s = SExpr.cons(
+        SExpr.subst(newExpr, oldExpr, tree.car),
+        SExpr.subst(newExpr, oldExpr, tree.cdr)
+      );
+      return s;
+    }
+    return tree;
+  }
+
+  toFloat(): number {
+    switch (this.type) {
+      case SExprType.INT:
+      case SExprType.FLOAT:
+        return this.data as number;
+      case SExprType.RATIO:
+        return (this.data as Ratio).toFloat();
+      default:
+        return 0;
+    }
+  }
+
+  toCode(): string {
+    switch (this.type) {
+      case SExprType.T:
+        return "SExpr.atomT()";
+      case SExprType.NIL:
+        return "SExpr.atomNIL()";
+      case SExprType.INT:
+      case SExprType.FLOAT:
+        return "SExpr.atomINT(" + (this.data as number) + ")";
+      case SExprType.RATIO:
+        return (
+          "SExpr.atomRATIO(" +
+          (this.data as Ratio).numerator +
+          "," +
+          (this.data as Ratio).denominator +
+          ")"
+        );
+      case SExprType.CONS:
+        return (
+          "SExpr.cons(" + this.car.toCode() + "," + this.cdr.toCode() + ")"
+        );
+      default:
+        throw Error("unimplemented SExpr.toCode() for type " + this.type);
+    }
+  }
+
   /**
    * Converts an s-expr to a string.
    * @returns
