@@ -630,7 +630,7 @@ export class WebLISP {
                 } else {
                   const list = this.genVar();
                   const ctr = this.genVar();
-                  const param = this.generate(sexpr.cdr.car);
+                  const param = this.eval(sexpr.cdr.car);
                   const c =
                     `let ${list}=${param};\n` +
                     `let ${ctr};\n` +
