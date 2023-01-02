@@ -11,6 +11,7 @@ import { Lexer } from "./lex";
 import { Parser } from "./parse";
 import { SExpr } from "./sexpr";
 import { Ratio, SExprType, SExprType as T } from "./types";
+import { runtimeCode } from "./runtimeCode";
 
 export class DebugInfo {
   breakpointLine = 0;
@@ -19,6 +20,8 @@ export class DebugInfo {
 }
 
 export class WebLISP {
+  private interpret = true; // false := generate code
+
   private output = "";
   private program: SExpr[] = [];
 
@@ -55,17 +58,26 @@ export class WebLISP {
   }
 
   public compile(): string {
-    this.code = "";
+    this.interpret = false;
     this.genVarCtr = 0;
+    let code = "";
     for (const sexpr of this.program) {
-      const c = this.generate(sexpr);
-      this.code += c;
+      this.code = "";
+      const c = this.eval(sexpr);
+      code += this.code + (c.data as string);
     }
-    this.code = `console.log(${this.code}.toString());`;
-    return this.code;
+    //this.code = `console.log(${this.code}.toString());`;
+    console.log(code);
+    code =
+      runtimeCode +
+      "var SExprType=RUNTIME.SExprType;" +
+      "var SExpr=RUNTIME.SExpr;" +
+      code;
+    return code;
   }
 
   public run(reset = true, maxSeconds = Infinity): SExpr[] {
+    this.interpret = true;
     this.output = "";
     this.debugInfo = [];
     if (reset) {
@@ -84,64 +96,6 @@ export class WebLISP {
 
   private genVar(): string {
     return "__" + this.genVarCtr++;
-  }
-
-  private generate(sexpr: SExpr, createVar = false): string {
-    let op = "";
-    switch (sexpr.type) {
-      case T.NIL:
-        return "SExpr.atomNIL()";
-      case T.T:
-        return "SExpr.atomT()";
-      case T.INT:
-        return "SExpr.atomINT(" + (sexpr.data as number) + ")";
-      case T.RATIO:
-        return (
-          "SExpr.atomRATIO(" +
-          (sexpr.data as Ratio).numerator +
-          "," +
-          (sexpr.data as Ratio).denominator +
-          ")"
-        );
-      case T.FLOAT:
-        return "SExpr.atomFLOAT(" + (sexpr.data as number) + ")";
-      case T.CONS:
-        switch (sexpr.car.type) {
-          case T.ID:
-            op = sexpr.car.data as string;
-            switch (op) {
-              case "CAR":
-                return this.generate(sexpr.cdr.car) + ".car";
-              case "CDR":
-                return this.generate(sexpr.cdr.car) + ".cdr";
-              case "LENGTH": {
-                const list = this.genVar();
-                const ctr = this.genVar();
-                const param = this.generate(sexpr.cdr.car);
-                this.code +=
-                  `let ${list}=${param};\n` +
-                  `let ${ctr};\n` +
-                  `for(${ctr}=0; ${list}.type === T.CONS; ${ctr}++)\n` +
-                  `  ${list} = ${list}.cdr;\n`;
-                return `SEXpr.atomINT(${ctr})`;
-              }
-              //  return  xxx;
-              case "QUOTE":
-                return sexpr.cdr.car.toCode();
-              case "WRITE":
-                return `console.log(${this.generate(
-                  sexpr.cdr.car
-                )}.toString());\n`;
-              default:
-                throw new CompileError("unimplemented operation " + op);
-            }
-          default:
-            throw new CompileError("unimplemented");
-        }
-      default:
-        throw new CompileError("unimplemented");
-    }
-    throw new CompileError("unimplemented");
   }
 
   private eval(sexpr: SExpr, createVar = false): SExpr {
@@ -191,13 +145,41 @@ export class WebLISP {
 
     switch (sexpr.type) {
       case T.NIL:
+        if (this.interpret) return sexpr;
+        else return SExpr.atomSTRING("SExpr.atomNIL()");
+
       case T.T:
+        if (this.interpret) return sexpr;
+        else return SExpr.atomSTRING("SExpr.atomT()");
+
       case T.INT:
+        if (this.interpret) return sexpr;
+        else
+          return SExpr.atomSTRING(
+            "SExpr.atomINT(" + (sexpr.data as number) + ")"
+          );
+
       case T.RATIO:
+        if (this.interpret) return sexpr;
+        else
+          return SExpr.atomSTRING(
+            "SExpr.atomRATIO(" +
+              (sexpr.data as Ratio).numerator +
+              "," +
+              (sexpr.data as Ratio).denominator +
+              ")"
+          );
+
       case T.FLOAT:
-        return sexpr;
+        if (this.interpret) return sexpr;
+        else
+          return SExpr.atomSTRING(
+            "SExpr.atomFLOAT(" + (sexpr.data as number) + ")"
+          );
 
       case T.ID: {
+        if (this.interpret == false)
+          throw new RunError("case T.ID NOT IMPLEMENTED");
         const id = sexpr.data as string;
         const n = this.variables.length;
         for (let i = n - 1; i >= 0; i--)
@@ -207,6 +189,7 @@ export class WebLISP {
           return this.variables[n - 1][id];
         } else throw new RunError("unknown symbol " + id);
       }
+
       case T.CONS:
         switch (sexpr.car.type) {
           case T.INT:
@@ -215,6 +198,7 @@ export class WebLISP {
           case T.STR:
             throw new RunError("" + sexpr.car.data + " is not a function name");
           case T.CONS: {
+            if (this.interpret == false) throw new RunError("UNIMPLEMENTED");
             // TODO: checks
             const fun = this.eval(sexpr.car);
             if (this.check && fun.type !== SExprType.DEFUN)
@@ -227,6 +211,8 @@ export class WebLISP {
             switch (op) {
               case "+":
               case "*": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 let res = SExpr.atomINT(op === "+" ? 0 : 1);
                 for (
                   let s = sexpr.cdr, i = 0;
@@ -287,6 +273,8 @@ export class WebLISP {
               }
               case "-":
               case "/": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 let res = SExpr.atomINT(op === "-" ? 0 : 1);
                 for (
                   let s = sexpr.cdr, i = 0;
@@ -358,6 +346,8 @@ export class WebLISP {
               case ">=":
               case "<":
               case "<=": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 let b = true;
                 let x = op === ">" || op === ">=" ? Infinity : -Infinity;
                 let i;
@@ -388,6 +378,8 @@ export class WebLISP {
                 return b ? SExpr.atomT() : SExpr.atomNIL();
               }
               case "AND": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 let res = SExpr.atomT();
                 for (let s = sexpr.cdr; s.type === T.CONS; s = s.cdr) {
                   const t = this.eval(s.car);
@@ -397,6 +389,8 @@ export class WebLISP {
                 return res;
               }
               case "APPLY": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // (APPLY function parameterList)
                 if (this.check) this.checkMinArgCount(sexpr, 2);
                 const fun = this.eval(sexpr.cdr.car);
@@ -406,31 +400,36 @@ export class WebLISP {
                 return this.call(fun.cdr.car, args, fun.cdr.cdr);
               }
               case "ATOM": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 return this.eval(sexpr.cdr.car).type !== SExprType.CONS
                   ? SExpr.atomT()
                   : SExpr.atomNIL();
               }
               case "CAR":
-                if (interpret) {
+                if (this.interpret) {
                   if (this.check) this.checkArgCount(sexpr, 1);
                   const param = this.eval(sexpr.cdr.car);
                   if (this.check && param.type !== T.CONS)
                     throw new RunError(op + " expects a list");
                   return param.car;
                 } else {
-                  return SExpr.atomSTRING(
-                    this.generate(sexpr.cdr.car) + ".car"
-                  );
+                  return SExpr.atomSTRING(this.eval(sexpr.cdr.car) + ".car");
                 }
-              case "CDR": {
-                if (this.check) this.checkArgCount(sexpr, 1);
-                const param = this.eval(sexpr.cdr.car);
-                if (this.check && param.type !== T.CONS)
-                  throw new RunError(op + " expects a list");
-                return param.cdr;
-              }
+              case "CDR":
+                if (this.interpret) {
+                  if (this.check) this.checkArgCount(sexpr, 1);
+                  const param = this.eval(sexpr.cdr.car);
+                  if (this.check && param.type !== T.CONS)
+                    throw new RunError(op + " expects a list");
+                  return param.cdr;
+                } else {
+                  return SExpr.atomSTRING(this.eval(sexpr.cdr.car) + ".cdr");
+                }
               case "CONS": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 2);
                 return SExpr.cons(
                   this.eval(sexpr.cdr.car),
@@ -438,6 +437,8 @@ export class WebLISP {
                 );
               }
               case "CONSP": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
                 return param.type === SExprType.CONS
@@ -445,12 +446,16 @@ export class WebLISP {
                   : SExpr.atomNIL();
               }
               case "COS": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
                 if (this.check) this.checkIsNumber(param);
                 return SExpr.atomFLOAT(Math.cos(param.toFloat()));
               }
               case "DEFCONSTANT": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // similar to DEFPARAMETER
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const id = sexpr.cdr.car;
@@ -463,6 +468,8 @@ export class WebLISP {
                 return SExpr.global(s);
               }
               case "DEFPARAMETER": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // similar to DEFCONSTANT
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const id = sexpr.cdr.car;
@@ -474,6 +481,8 @@ export class WebLISP {
                 return SExpr.global(s);
               }
               case "DEFUN": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // (DEFUN id (id*) expr*)
                 if (this.check) {
                   this.checkMinArgCount(sexpr, 2);
@@ -489,6 +498,8 @@ export class WebLISP {
                 return SExpr.defun(id, params_body);
               }
               case "DO": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // (DO init cond body*)
                 // init = ((id start update)*)
                 // cond = (condCore expr*)
@@ -542,6 +553,8 @@ export class WebLISP {
                 return res;
               }
               case "DOLIST": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // (DOLIST (id list) expr*)
                 let res = SExpr.atomNIL();
                 const scope: { [id: string]: SExpr } = {};
@@ -561,6 +574,8 @@ export class WebLISP {
                 return res;
               }
               case "EQUALP": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 2);
                 return SExpr.equalp(
                   this.eval(sexpr.cdr.car),
@@ -570,6 +585,8 @@ export class WebLISP {
                   : SExpr.atomNIL();
               }
               case "FUNCALL": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // (FUNCALL function parameter*)
                 if (this.check) this.checkMinArgCount(sexpr, 2);
                 const fun = this.eval(sexpr.cdr.car);
@@ -578,6 +595,8 @@ export class WebLISP {
                 return this.call(fun.cdr.car, sexpr.cdr.cdr, fun.cdr.cdr);
               }
               case "FUNCTION": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 const idExpr = sexpr.cdr.car;
                 if (this.check && idExpr.type !== SExprType.ID)
@@ -588,6 +607,8 @@ export class WebLISP {
                 return SExpr.defun(id, this.functions[id as string]);
               }
               case "IF": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // (IF cond codeT codeF)
                 this.checkMinArgCount(sexpr, 2);
                 if (this.eval(SExpr.nth(sexpr, 1)).type !== SExprType.NIL)
@@ -595,16 +616,32 @@ export class WebLISP {
                 else return this.eval(SExpr.nth(sexpr, 3));
               }
               case "LAMBDA": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 return SExpr.defun("LAMBDA", SExpr.nthcdr(sexpr, 1));
               }
-              case "LENGTH": {
-                if (this.check) this.checkArgCount(sexpr, 1);
-                let param = this.eval(sexpr.cdr.car);
-                let len;
-                for (len = 0; param.type === T.CONS; len++) param = param.cdr;
-                return SExpr.atomINT(len);
-              }
+              case "LENGTH":
+                if (this.interpret) {
+                  if (this.check) this.checkArgCount(sexpr, 1);
+                  let param = this.eval(sexpr.cdr.car);
+                  let len;
+                  for (len = 0; param.type === T.CONS; len++) param = param.cdr;
+                  return SExpr.atomINT(len);
+                } else {
+                  const list = this.genVar();
+                  const ctr = this.genVar();
+                  const param = this.generate(sexpr.cdr.car);
+                  const c =
+                    `let ${list}=${param};\n` +
+                    `let ${ctr};\n` +
+                    `for(${ctr}=0; ${list}.type === SExprType.CONS; ${ctr}++)\n` +
+                    `  ${list} = ${list}.cdr;\n`;
+                  this.code += c;
+                  return SExpr.atomSTRING(`SExpr.atomINT(${ctr})`);
+                }
               case "LET": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // TODO: LET vs LET*
                 // (LET ((id init)*) expr*)
                 let res = SExpr.atomNIL();
@@ -627,6 +664,8 @@ export class WebLISP {
                 return res;
               }
               case "LIST": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 let res, u: SExpr;
                 res = u = SExpr.atomNIL();
                 for (
@@ -645,6 +684,8 @@ export class WebLISP {
                 return res;
               }
               case "LISTP": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
                 return param.type === SExprType.CONS ||
@@ -653,6 +694,8 @@ export class WebLISP {
                   : SExpr.atomNIL();
               }
               case "MEMBER": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const needle = this.eval(SExpr.nth(sexpr, 1));
                 const haystack = this.eval(SExpr.nth(sexpr, 2));
@@ -663,6 +706,8 @@ export class WebLISP {
                 return res;
               }
               case "NOT": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // same as NULL
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
@@ -671,6 +716,8 @@ export class WebLISP {
                   : SExpr.atomNIL();
               }
               case "NTH": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // (NTH idx list)
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const idx = sexpr.cdr.car;
@@ -683,6 +730,8 @@ export class WebLISP {
                 return SExpr.nth(list, i);
               }
               case "NTHCDR": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // (NTHCDR idx list)
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const idx = sexpr.cdr.car;
@@ -695,6 +744,8 @@ export class WebLISP {
                 return SExpr.nthcdr(list, i);
               }
               case "NULL": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // same as NOT
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
@@ -703,6 +754,8 @@ export class WebLISP {
                   : SExpr.atomNIL();
               }
               case "NUMBERP": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
                 return param.type === SExprType.INT ||
@@ -712,6 +765,8 @@ export class WebLISP {
                   : SExpr.atomNIL();
               }
               case "OR": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 let res = SExpr.atomNIL();
                 for (let s = sexpr.cdr; s.type === T.CONS; s = s.cdr) {
                   const t = this.eval(s.car);
@@ -721,33 +776,47 @@ export class WebLISP {
                 return res;
               }
               case "PROGN": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 let res = SExpr.atomNIL();
                 for (let s = sexpr.cdr; s.type === T.CONS; s = s.cdr)
                   res = this.eval(s.car);
                 return res;
               }
               case "QUOTE": {
-                if (this.check) this.checkArgCount(sexpr, 1);
-                return sexpr.cdr.car;
+                if (this.interpret) {
+                  if (this.check) this.checkArgCount(sexpr, 1);
+                  return sexpr.cdr.car;
+                } else {
+                  return SExpr.atomSTRING(sexpr.cdr.car.toCode());
+                }
               }
               case "REMOVE": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const param1 = sexpr.cdr.car;
                 const param2 = this.eval(sexpr.cdr.cdr.car);
                 return param2.remove(param1);
               }
               case "TAN": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
                 if (this.check) this.checkIsNumber(param);
                 return SExpr.atomFLOAT(Math.tan(param.toFloat()));
               }
               case "THIRD": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
                 return SExpr.nth(param, 2);
               }
               case "TYPEP": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const expr = this.eval(sexpr.cdr.car);
                 const id = this.eval(sexpr.cdr.cdr.car);
@@ -768,6 +837,8 @@ export class WebLISP {
                 else SExpr.atomNIL();
               }
               case "SETF": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // (SETF place expr place expr ...)
                 const n = SExpr.len(sexpr);
                 if (this.check) this.checkEvenArgCount(sexpr);
@@ -782,6 +853,8 @@ export class WebLISP {
                 return res;
               }
               case "SIN": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
                 if (this.check) this.checkIsNumber(param);
@@ -789,6 +862,8 @@ export class WebLISP {
               }
               case "SUBSTITUTE":
               case "SUBST": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // TODO: SUBSTITUTE AND SUBST ARE NOT EQUAL!!
                 if (this.check) this.checkArgCount(sexpr, 3);
                 const newExpr = this.eval(SExpr.nth(sexpr, 1));
@@ -798,17 +873,28 @@ export class WebLISP {
                 return res;
               }
               case "TERPRI": {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 this.output += "\n";
                 return SExpr.atomNIL();
               }
-              case "WRITE": {
-                if (this.check) this.checkArgCount(sexpr, 1);
-                const param = this.eval(sexpr.cdr.car);
-                this.output += param.toString();
-                console.log(param.toString());
-                return param;
-              }
+              case "WRITE":
+                if (this.interpret) {
+                  if (this.check) this.checkArgCount(sexpr, 1);
+                  const param = this.eval(sexpr.cdr.car);
+                  this.output += param.toString();
+                  console.log(param.toString());
+                  return param;
+                } else {
+                  const v = this.genVar();
+                  const c = `let ${v} = ${this.eval(sexpr.cdr.car)};`;
+                  this.code += c;
+                  this.code += `console.log(${v}.toString());`;
+                  return SExpr.atomSTRING(v);
+                }
               default: {
+                if (this.interpret == false)
+                  throw new RunError("UNIMPLEMENTED");
                 // -- call user function --
                 const fun = this.functions[op];
                 if (this.check && fun == undefined)
