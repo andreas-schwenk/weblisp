@@ -4,14 +4,23 @@ import * as glob from "glob";
 import * as fs from "fs";
 import { WebLISP } from "../src/weblisp";
 import { SExprType } from "../src/types";
+import { SExpr } from "../src/sexpr";
 
-//let src = "(write (car '(271 1337)))";
-//let src = "'(3 4 5 6 7 8)";
-let src = "(length '(3 4 5 6 7 8))";
-let w = new WebLISP();
+let src: string;
+let w: WebLISP;
+
+//src = "(write (car '(271 1337)))";
+//src = "'(3 4 5 6 7 8)";
+src = "(write (length '(3 4 5 6 7 8)))";
+//src = "(cdr '(1337 314 271))";
+w = new WebLISP();
 w.import(src);
-console.log(w.compile());
-process.exit(0);
+const code = w.compile();
+//console.log(code);
+const f = new Function("", code);
+f();
+
+//process.exit(0);
 
 src = `(setf x 3)
 (+ x x)
