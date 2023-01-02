@@ -23,7 +23,11 @@ esbuild.buildSync({
 });
 
 let runtimeCode = fs.readFileSync("build/runtime.min.js", "utf-8");
-runtimeCode = "export const runtimeCode = `" + runtimeCode + "`;";
+runtimeCode =
+  "// THIS FILE IS AUTO CREATED BY build.mjs\n" +
+  "export const runtimeCode = `" +
+  runtimeCode +
+  "`;\n";
 fs.writeFileSync("src/runtimeCode.ts", runtimeCode);
 //console.log(runtimeCode);
 
