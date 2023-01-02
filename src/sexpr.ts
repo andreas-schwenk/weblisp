@@ -148,8 +148,28 @@ export class SExpr {
       case SExprType.STR:
         if ((u.data as string) !== (v.data as string)) return false;
         break;
+      default:
+        throw new Error("unimplemented SExpr.equalp(..) type " + u.type);
     }
     return true;
+  }
+
+  static match(
+    pattern: SExpr,
+    s: SExpr,
+    vars: { [id: string]: SExpr }
+  ): boolean {
+    if (pattern.type !== s.type) return false;
+    switch (pattern.type) {
+      case SExprType.CONS:
+        return (
+          SExpr.match(pattern.car, s.car, vars) &&
+          SExpr.match(pattern.cdr, s.cdr, vars)
+        );
+      default:
+        xx;
+    }
+    return false;
   }
 
   remove(key: SExpr): SExpr {
