@@ -75,7 +75,7 @@ export class Lexer {
       if (ch == " " || ch == "\t" || ch == "\n" || ch == ";") {
         return;
       }
-      if (ch == "(" || ch == ")" || ch == "'") {
+      if (ch == "(" || ch == ")" || ch == "'" || ch == "`" || ch == ",") {
         if (this.token !== "#" && this.token.length > 0) return;
         this.pos++;
         this.col++;
