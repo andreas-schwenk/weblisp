@@ -1,4 +1,7 @@
-/* webLISP, 2022 by Andreas Schwenk */
+/* 
+  webLISP, 2022-2023 by Andreas Schwenk <contact@compiler-construction.com>
+  LICENSE: GPLv3 
+*/
 
 export class Lexer {
   private src = "";
@@ -10,6 +13,8 @@ export class Lexer {
   private row = 1; // current row number of input
   private col = 1; // current column number of input
   private eof = false; // end of file / input
+
+  private trsMode = false;
 
   constructor(src: string) {
     this.src = src;
@@ -30,25 +35,36 @@ export class Lexer {
     return this.eof;
   }
 
+  activateTrsMode(on = true) {
+    this.trsMode = on;
+  }
+
   next() {
     // skip white spaces and comments
     let comment = false;
-    let stop = false;
+    let stop;
     for (;;) {
       stop = false;
+      // end of input?
       if (this.pos >= this.len) {
         this.eof = true;
         return;
       }
+      // read next character
       let ch = this.src[this.pos];
       switch (ch) {
         case " ":
+          this.pos++, this.col++;
+          break;
         case "\t":
-          this.pos++, (this.col += ch == "\t" ? 4 : 1);
+          this.pos++, (this.col += 4);
           break;
         case "\n":
           this.pos++, this.row++, (this.col = 1);
-          if (comment) comment = false;
+          if (comment) {
+            // comments end after line break
+            comment = false;
+          }
           break;
         case ";":
           this.pos++, this.col++;
@@ -57,34 +73,72 @@ export class Lexer {
         default:
           if (comment) {
             this.pos++, this.col++;
-          } else stop = true;
+          } else {
+            stop = true;
+          }
       }
       if (stop) break;
     }
     // set token position
     this.tokenCol = this.col;
     this.tokenRow = this.row;
-    // ID | INT | REAL | DEL
+    // read token
     this.token = "";
+    let isString = false;
     for (;;) {
+      // end of input?
       if (this.pos >= this.len) {
         if (this.token.length == 0) this.eof = true;
         return;
       }
+      // read next character
       let ch = this.src[this.pos];
-      if (ch == " " || ch == "\t" || ch == "\n" || ch == ";") {
-        return;
+      // string?
+      if (ch == '"') {
+        // TODO: handle unclosed strings
+        if (isString) {
+          this.pos++, this.col++;
+          this.token += ch;
+          return;
+        } else {
+          if (this.token.length > 0) return;
+          isString = true;
+          this.pos++, this.col++;
+          this.token += ch;
+          continue;
+        }
       }
-      if (ch == "(" || ch == ")" || ch == "'" || ch == "`" || ch == ",") {
-        if (this.token !== "#" && this.token.length > 0) return;
-        this.pos++;
-        this.col++;
+      if (isString == false) {
+        // stop in case of a white space or comment
+        if (ch == " " || ch == "\t" || ch == "\n" || ch == ";") {
+          return;
+        }
+        // special characters (e.g. parentheses) are returned as separate tokens
+        if (
+          ch == "(" ||
+          ch == ")" ||
+          ch == "[" ||
+          ch == "]" ||
+          ch == "'" ||
+          ch == "`" ||
+          ch == ","
+        ) {
+          if (this.token.length > 0 && this.token !== "#") {
+            // return token before special character (if applicable)
+            return;
+          }
+          this.pos++, this.col++;
+          this.token += ch;
+          return;
+        }
+      }
+      // append character to token
+      this.pos++, this.col++;
+      if (isString || this.token === "#\\" || this.trsMode) {
         this.token += ch;
-        return;
+      } else {
+        this.token += ch.toUpperCase();
       }
-      this.pos++;
-      this.col++;
-      this.token += ch.toUpperCase();
     }
   }
 }
