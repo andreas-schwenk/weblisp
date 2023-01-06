@@ -1,4 +1,7 @@
-/* webLISP, 2022 by Andreas Schwenk */
+/* 
+  webLISP, 2022-2023 by Andreas Schwenk <contact@compiler-construction.com>
+  LICENSE: GPLv3 
+*/
 
 const fs = require("fs");
 
