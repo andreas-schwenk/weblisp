@@ -1,4 +1,7 @@
-/* webLISP, 2022 by Andreas Schwenk */
+/* 
+  webLISP, 2022-2023 by Andreas Schwenk <contact@compiler-construction.com>
+  LICENSE: GPLv3 
+*/
 
 export enum SExprType {
   CONS = "CONS", // car, cdr
@@ -7,6 +10,7 @@ export enum SExprType {
   RATIO = "RATIO", // atom
   FLOAT = "FLOAT", // atom
   ID = "ID", // atom
+  CHAR = "CHAR", // atom
   STR = "STR", // atom
   T = "T", // atom
   DEFUN = "DEFUN", // car: id, cdr: fct
