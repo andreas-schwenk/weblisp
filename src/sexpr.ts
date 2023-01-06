@@ -1,4 +1,7 @@
-/* webLISP, 2022 by Andreas Schwenk */
+/* 
+  webLISP, 2022-2023 by Andreas Schwenk <contact@compiler-construction.com>
+  LICENSE: GPLv3 
+*/
 
 import { Ratio, SExprType } from "./types";
 
@@ -78,6 +81,12 @@ export class SExpr {
     return s;
   }
 
+  static atomCHAR(char: string, srcRow = -1, srcCol = -1): SExpr {
+    const s = new SExpr(SExprType.CHAR, srcRow, srcCol);
+    s.data = char;
+    return s;
+  }
+
   static atomSTRING(str: string, srcRow = -1, srcCol = -1): SExpr {
     const s = new SExpr(SExprType.STR, srcRow, srcCol);
     s.data = str;
@@ -128,6 +137,9 @@ export class SExpr {
     // TODO: allow e.g. u==INT and v==FLOAT
     if (u.type !== v.type) return false;
     switch (u.type) {
+      case SExprType.T:
+      case SExprType.NIL:
+        return true;
       case SExprType.CONS:
         if (SExpr.equalp(u.car, v.car) == false) return false;
         if (SExpr.equalp(u.cdr, v.cdr) == false) return false;
@@ -145,6 +157,7 @@ export class SExpr {
         if ((u.data as Ratio).compare(v.data as Ratio) == false) return false;
         break;
       case SExprType.ID:
+      case SExprType.CHAR:
       case SExprType.STR:
         if ((u.data as string) !== (v.data as string)) return false;
         break;
@@ -159,17 +172,39 @@ export class SExpr {
     s: SExpr,
     vars: { [id: string]: SExpr }
   ): boolean {
-    if (pattern.type !== s.type) return false;
-    switch (pattern.type) {
-      case SExprType.CONS:
-        return (
-          SExpr.match(pattern.car, s.car, vars) &&
-          SExpr.match(pattern.cdr, s.cdr, vars)
-        );
-      default:
-        xx;
+    if (pattern.type === SExprType.ID) {
+      const id = pattern.data as string;
+      if (id.startsWith("$")) {
+        const varId = id.substring(1);
+        if (varId in vars) {
+          if (SExpr.equalp(vars[varId], s) == false) {
+            return false;
+          }
+        } else vars[varId] = s;
+        return true;
+      }
     }
-    return false;
+    if (pattern.type === SExprType.CONS && pattern.car.type === SExprType.ID) {
+      const id = pattern.car.data as string;
+      if (id.startsWith("$$")) {
+        const varId = id.substring(2);
+        if (varId in vars) {
+          if (SExpr.equalp(vars[varId], s) == false) {
+            return false;
+          }
+        }
+        vars[varId] = s;
+        return true;
+      }
+    }
+    if (pattern.type !== s.type) return false;
+    if (pattern.type === SExprType.CONS) {
+      return (
+        SExpr.match(pattern.car, s.car, vars) &&
+        SExpr.match(pattern.cdr, s.cdr, vars)
+      );
+    }
+    return pattern.data === s.data;
   }
 
   remove(key: SExpr): SExpr {
@@ -254,7 +289,7 @@ export class SExpr {
    * Converts an s-expr to a string.
    * @returns
    */
-  toString(): string {
+  toString(format = false, indent = 0): string {
     switch (this.type) {
       case SExprType.NIL:
         return "NIL";
@@ -267,28 +302,37 @@ export class SExpr {
       case SExprType.RATIO:
         return "" + (this.data as Ratio).toString();
       case SExprType.ID:
-      case SExprType.STR:
       case SExprType.GLOBAL:
         return this.data as string;
+      case SExprType.CHAR:
+        return "#\\" + (this.data as string);
+      case SExprType.STR:
+        return '"' + (this.data as string) + '"';
       case SExprType.DEFUN:
         return "FUNCTION " + (this.car.data as string);
       case SExprType.CONS:
-        let s = "(";
+        let s = "";
+        if (format) {
+          s += "\n";
+          for (let i = 0; i < indent * 2; i++) s += " ";
+          indent++;
+        }
+        s += "(";
         let node = this as SExpr;
         let i = 0;
         do {
           if (node.type === SExprType.NIL) break;
           if (i > 0) s += " ";
           if (node.type != SExprType.CONS) {
-            s += "." + " " + node.toString();
+            s += "." + " " + node.toString(format, indent);
             break;
           }
-          //s += node.car == null ? "NIL" : node.car.toString();
-          s += node.car.toString();
+          s += node.car.toString(format, indent);
           node = node.cdr;
           i++;
         } while (node != null);
         s += ")";
+        indent--;
         return s;
       default:
         throw new Error("unimplemented");
