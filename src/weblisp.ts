@@ -1,10 +1,13 @@
-/* webLISP, 2022 by Andreas Schwenk
+/* 
+  webLISP, 2022-2023 by Andreas Schwenk <contact@compiler-construction.com>
+  LICENSE: GPLv3 
+*/
 
+/*
 LISP tutorials:
 - https://lisp-lang.org/learn/getting-started/
 - https://gigamonkeys.com/book/
 - https://jtra.cz/stuff/lisp/sclr/index.html
-
 */
 
 import { Lexer } from "./lex";
@@ -42,7 +45,8 @@ export class WebLISP {
 
   public import(input: string): void {
     const lexer = new Lexer(input);
-    this.program = Parser.parse(lexer);
+    const parser = new Parser();
+    this.program = parser.parse(lexer);
   }
 
   public getOutput(): string {
@@ -177,6 +181,20 @@ export class WebLISP {
             "SExpr.atomFLOAT(" + (sexpr.data as number) + ")"
           );
 
+      case T.CHAR:
+        if (this.interpret) return sexpr;
+        else
+          return SExpr.atomSTRING(
+            "SExpr.atomCHAR(" + (sexpr.data as string) + ")"
+          );
+
+      case T.STR:
+        if (this.interpret) return sexpr;
+        else
+          return SExpr.atomSTRING(
+            "SExpr.atomSTR(" + (sexpr.data as string) + ")"
+          );
+
       case T.ID: {
         if (!this.interpret) throw new RunError("case T.ID NOT IMPLEMENTED");
         const id = sexpr.data as string;
@@ -200,7 +218,7 @@ export class WebLISP {
             if (!this.interpret) throw new RunError("UNIMPLEMENTED");
             // TODO: checks
             const fun = this.eval(sexpr.car);
-            if (this.check && fun.type !== SExprType.DEFUN)
+            if (this.check && fun.type !== T.DEFUN)
               throw new RunError("not a function");
             const res = this.call(fun.cdr.car, sexpr.cdr, fun.cdr.cdr);
             return res;
@@ -378,8 +396,29 @@ export class WebLISP {
                 let res = SExpr.atomT();
                 for (let s = sexpr.cdr; s.type === T.CONS; s = s.cdr) {
                   const t = this.eval(s.car);
-                  if (t.type === SExprType.NIL) return t;
+                  if (t.type === T.NIL) return t;
                   res = t;
+                }
+                return res;
+              }
+              case "APPEND": {
+                if (!this.interpret) throw new RunError("UNIMPLEMENTED");
+                // (APPEND list* obj)
+                // TODO: obj must be used as CDR w/o copying all CONSES
+                // TODO: must check, if list* contains lists!!
+                let res = SExpr.atomNIL();
+                let last = res;
+                for (let t = sexpr.cdr; t.type !== T.NIL; t = t.cdr) {
+                  const list = this.eval(t.car);
+                  for (let u = list; u.type !== T.NIL; u = u.cdr) {
+                    const n = SExpr.cons(u.car, SExpr.atomNIL());
+                    if (res.type === T.NIL) {
+                      res = last = n;
+                    } else {
+                      last.cdr = n;
+                      last = last.cdr;
+                    }
+                  }
                 }
                 return res;
               }
@@ -388,7 +427,7 @@ export class WebLISP {
                 // (APPLY function parameterList)
                 if (this.check) this.checkMinArgCount(sexpr, 2);
                 const fun = this.eval(sexpr.cdr.car);
-                if (this.check && fun.type !== SExprType.DEFUN)
+                if (this.check && fun.type !== T.DEFUN)
                   throw new RunError("expected a function");
                 const args = this.eval(sexpr.cdr.cdr.car);
                 return this.call(fun.cdr.car, args, fun.cdr.cdr);
@@ -396,7 +435,7 @@ export class WebLISP {
               case "ATOM": {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
-                return this.eval(sexpr.cdr.car).type !== SExprType.CONS
+                return this.eval(sexpr.cdr.car).type !== T.CONS
                   ? SExpr.atomT()
                   : SExpr.atomNIL();
               }
@@ -425,6 +464,21 @@ export class WebLISP {
                 } else {
                   return SExpr.atomSTRING(this.eval(sexpr.cdr.car) + ".cdr");
                 }
+              case "CHAR": {
+                if (!this.interpret) throw new RunError("UNIMPLEMENTED");
+                if (this.check) this.checkArgCount(sexpr, 2);
+                const str = this.eval(sexpr.cdr.car);
+                const pos = this.eval(sexpr.cdr.cdr.car);
+                if (this.check && str.type !== T.STR)
+                  throw new RunError("Expected a string");
+                if (this.check && pos.type !== T.INT)
+                  throw new RunError("Expected an integer index");
+                const s = str.data as string;
+                const p = pos.data as number;
+                if (this.check && (p < 0 || p >= s.length))
+                  throw new RunError("invalid string index");
+                return SExpr.atomCHAR(s[p]);
+              }
               case "COMMA":
                 throw new RunError("COMMA NOT ALLOWED OUTSIDE OF BACKQUOTE");
               case "CONS": {
@@ -439,9 +493,7 @@ export class WebLISP {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
-                return param.type === SExprType.CONS
-                  ? SExpr.atomT()
-                  : SExpr.atomNIL();
+                return param.type === T.CONS ? SExpr.atomT() : SExpr.atomNIL();
               }
               case "COS": {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
@@ -481,8 +533,11 @@ export class WebLISP {
                 if (this.check) {
                   this.checkMinArgCount(sexpr, 2);
                   if (
-                    SExpr.nth(sexpr, 1).type !== SExprType.ID ||
-                    SExpr.nth(sexpr, 2).type !== SExprType.CONS
+                    SExpr.nth(sexpr, 1).type !== T.ID ||
+                    !(
+                      SExpr.nth(sexpr, 2).type === T.CONS ||
+                      SExpr.nth(sexpr, 2).type === T.NIL
+                    )
                   )
                     throw new RunError("DEFUN is not well structured");
                 }
@@ -504,11 +559,11 @@ export class WebLISP {
                 const body = SExpr.nthcdr(sexpr, 3);
                 if (
                   this.check &&
-                  (init.type !== SExprType.CONS || cond.type !== SExprType.CONS)
+                  (init.type !== T.CONS || cond.type !== T.CONS)
                 )
                   throw new RunError("DO is not well structured");
                 // init
-                for (let t = init; t.type !== SExprType.NIL; t = t.cdr) {
+                for (let t = init; t.type !== T.NIL; t = t.cdr) {
                   const id = SExpr.nth(t.car, 0);
                   if (this.check && id.type !== T.ID)
                     throw new RunError("expected ID");
@@ -521,22 +576,22 @@ export class WebLISP {
                   let doBreak = false;
                   for (
                     let idx = 0, t = cond;
-                    t.type !== SExprType.NIL;
+                    t.type !== T.NIL;
                     idx++, t = t.cdr
                   ) {
                     const u = this.eval(t.car);
                     if (idx == 0) {
-                      if (u.type === SExprType.T) doBreak = true;
+                      if (u.type === T.T) doBreak = true;
                       else break;
                     }
                     if (idx > 0) res = u;
                   }
                   if (doBreak) break;
                   // body
-                  for (let t = body; t.type !== SExprType.NIL; t = t.cdr)
+                  for (let t = body; t.type !== T.NIL; t = t.cdr)
                     this.eval(t.car);
                   // update
-                  for (let t = init; t.type !== SExprType.NIL; t = t.cdr) {
+                  for (let t = init; t.type !== T.NIL; t = t.cdr) {
                     const id = SExpr.nth(t.car, 0);
                     const expr = this.eval(SExpr.nth(t.car, 2));
                     doScope[id.data as string] = expr;
@@ -552,13 +607,13 @@ export class WebLISP {
                 const scope: { [id: string]: SExpr } = {};
                 this.variables.push(scope);
                 const id = SExpr.deepNth(sexpr, [1, 0]);
-                if (this.check && id.type !== SExprType.ID)
+                if (this.check && id.type !== T.ID)
                   throw new RunError("expected ID");
                 let list = this.eval(SExpr.deepNth(sexpr, [1, 1]));
                 let expr = SExpr.nthcdr(sexpr, 2);
-                while (list.type !== SExprType.NIL) {
+                while (list.type !== T.NIL) {
                   scope[id.data as string] = list.car;
-                  for (let e = expr; e.type !== SExprType.NIL; e = e.cdr)
+                  for (let e = expr; e.type !== T.NIL; e = e.cdr)
                     this.eval(e.car);
                   list = list.cdr;
                 }
@@ -580,7 +635,7 @@ export class WebLISP {
                 // (FUNCALL function parameter*)
                 if (this.check) this.checkMinArgCount(sexpr, 2);
                 const fun = this.eval(sexpr.cdr.car);
-                if (this.check && fun.type !== SExprType.DEFUN)
+                if (this.check && fun.type !== T.DEFUN)
                   throw new RunError("expected a function");
                 return this.call(fun.cdr.car, sexpr.cdr.cdr, fun.cdr.cdr);
               }
@@ -588,7 +643,7 @@ export class WebLISP {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 const idExpr = sexpr.cdr.car;
-                if (this.check && idExpr.type !== SExprType.ID)
+                if (this.check && idExpr.type !== T.ID)
                   throw new RunError("expected ID");
                 const id = idExpr.data as string;
                 if (this.check && id in this.functions == false)
@@ -599,7 +654,7 @@ export class WebLISP {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
                 // (IF cond codeT codeF)
                 this.checkMinArgCount(sexpr, 2);
-                if (this.eval(SExpr.nth(sexpr, 1)).type !== SExprType.NIL)
+                if (this.eval(SExpr.nth(sexpr, 1)).type !== T.NIL)
                   return this.eval(SExpr.nth(sexpr, 2));
                 else return this.eval(SExpr.nth(sexpr, 3));
               }
@@ -635,7 +690,7 @@ export class WebLISP {
                 this.variables.push(letScope);
                 const id_init = SExpr.nth(sexpr, 1);
                 const expr = SExpr.nthcdr(sexpr, 2);
-                for (let s = id_init; s.type !== SExprType.NIL; s = s.cdr) {
+                for (let s = id_init; s.type !== T.NIL; s = s.cdr) {
                   if (this.check && SExpr.len(s.car) != 2)
                     throw new RunError("expected (id init)");
                   const id = SExpr.nth(s.car, 0);
@@ -644,7 +699,7 @@ export class WebLISP {
                   const init = this.eval(SExpr.nth(s.car, 1));
                   letScope[id.data as string] = init;
                 }
-                for (let s = expr; s.type !== SExprType.NIL; s = s.cdr)
+                for (let s = expr; s.type !== T.NIL; s = s.cdr)
                   res = this.eval(s.car);
                 this.variables.pop();
                 return res;
@@ -672,8 +727,7 @@ export class WebLISP {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
-                return param.type === SExprType.CONS ||
-                  param.type === SExprType.NIL
+                return param.type === T.CONS || param.type === T.NIL
                   ? SExpr.atomT()
                   : SExpr.atomNIL();
               }
@@ -684,7 +738,7 @@ export class WebLISP {
                 const haystack = this.eval(SExpr.nth(sexpr, 2));
                 let res = SExpr.atomNIL();
                 // TODO: "equalp" is not used per default in common lisp
-                for (let h = haystack; h.type !== SExprType.NIL; h = h.cdr)
+                for (let h = haystack; h.type !== T.NIL; h = h.cdr)
                   if (SExpr.equalp(needle, h.car)) res = h;
                 return res;
               }
@@ -693,9 +747,7 @@ export class WebLISP {
                 // same as NULL
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
-                return param.type === SExprType.NIL
-                  ? SExpr.atomT()
-                  : SExpr.atomNIL();
+                return param.type === T.NIL ? SExpr.atomT() : SExpr.atomNIL();
               }
               case "NTH": {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
@@ -703,7 +755,7 @@ export class WebLISP {
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const idx = sexpr.cdr.car;
                 const list = this.eval(sexpr.cdr.cdr.car);
-                if (this.check && idx.type !== SExprType.INT)
+                if (this.check && idx.type !== T.INT)
                   throw new RunError("expected an integer index");
                 const i = idx.data as number;
                 if (this.check && i < 0)
@@ -716,7 +768,7 @@ export class WebLISP {
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const idx = sexpr.cdr.car;
                 const list = this.eval(sexpr.cdr.cdr.car);
-                if (this.check && idx.type !== SExprType.INT)
+                if (this.check && idx.type !== T.INT)
                   throw new RunError("expected an integer index");
                 const i = idx.data as number;
                 if (this.check && i < 0)
@@ -728,17 +780,15 @@ export class WebLISP {
                 // same as NOT
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
-                return param.type === SExprType.NIL
-                  ? SExpr.atomT()
-                  : SExpr.atomNIL();
+                return param.type === T.NIL ? SExpr.atomT() : SExpr.atomNIL();
               }
               case "NUMBERP": {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
-                return param.type === SExprType.INT ||
-                  param.type === SExprType.FLOAT ||
-                  param.type === SExprType.RATIO
+                return param.type === T.INT ||
+                  param.type === T.FLOAT ||
+                  param.type === T.RATIO
                   ? SExpr.atomT()
                   : SExpr.atomNIL();
               }
@@ -747,7 +797,7 @@ export class WebLISP {
                 let res = SExpr.atomNIL();
                 for (let s = sexpr.cdr; s.type === T.CONS; s = s.cdr) {
                   const t = this.eval(s.car);
-                  if (t.type !== SExprType.NIL) return t;
+                  if (t.type !== T.NIL) return t;
                   res = t;
                 }
                 return res;
@@ -797,22 +847,7 @@ export class WebLISP {
                 }
                 // rewrite
                 const n = s.length; // number of rules
-                let change;
-                do {
-                  change = false;
-                  // for all rules: find matching rule
-                  for (let i = 0; i < n; i++) {
-                    const si = s[i];
-                    if (
-                      SExpr.equalp(si, v) &&
-                      this.eval(cond[i]).type !== T.NIL
-                    ) {
-                      v = this.eval(t[i]);
-                      change = true;
-                    }
-                  }
-                } while (change);
-                return v;
+                return this.rewrite(n, s, cond, t, v);
               }
               case "TAN": {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
@@ -832,7 +867,7 @@ export class WebLISP {
                 if (this.check) this.checkArgCount(sexpr, 2);
                 const expr = this.eval(sexpr.cdr.car);
                 const id = this.eval(sexpr.cdr.cdr.car);
-                if (this.check && id.type !== SExprType.ID)
+                if (this.check && id.type !== T.ID)
                   throw new RunError("expected ID as second param");
                 const s = id.data as string;
                 if (
@@ -841,9 +876,9 @@ export class WebLISP {
                 )
                   throw new RunError("unexpected TYPE " + s);
                 if (
-                  (expr.type === SExprType.INT && s === "INTEGER") ||
-                  (expr.type === SExprType.FLOAT && s === "FLOAT") ||
-                  (expr.type === SExprType.RATIO && s === "RATIO")
+                  (expr.type === T.INT && s === "INTEGER") ||
+                  (expr.type === T.FLOAT && s === "FLOAT") ||
+                  (expr.type === T.RATIO && s === "RATIO")
                 )
                   return SExpr.atomT();
                 else SExpr.atomNIL();
@@ -854,7 +889,7 @@ export class WebLISP {
                 const n = SExpr.len(sexpr);
                 if (this.check) this.checkEvenArgCount(sexpr);
                 let res = SExpr.atomNIL();
-                for (let s = sexpr.cdr; s.type !== SExprType.NIL; s = s.cdr) {
+                for (let s = sexpr.cdr; s.type !== T.NIL; s = s.cdr) {
                   const place = s.car;
                   res = this.eval(place, true); // true := create if not exists
                   s = s.cdr; // next is expr
@@ -917,9 +952,44 @@ export class WebLISP {
     }
   }
 
+  private rewrite(
+    n: number,
+    s: SExpr[],
+    cond: SExpr[],
+    t: SExpr[],
+    v: SExpr
+  ): SExpr {
+    // rewrite
+    let change;
+    let numChanges = 0;
+    do {
+      change = false;
+      // run recursively
+      if (v.type === T.CONS) {
+        v.car = this.rewrite(n, s, cond, t, v.car);
+        v.cdr = this.rewrite(n, s, cond, t, v.cdr);
+      }
+      // for all rules  s[cond]->t : find matching rule for v
+      for (let i = 0; i < n; i++) {
+        const si = s[i];
+        const scope: { [id: string]: SExpr } = {};
+        this.variables.push(scope);
+        const matching = SExpr.match(si, v, scope);
+        if (matching && this.eval(cond[i]).type !== T.NIL) {
+          v = this.eval(t[i]);
+          change = true;
+          numChanges++;
+        }
+        this.variables.pop();
+      }
+    } while (change);
+    // return result
+    return v;
+  }
+
   private backquote(s: SExpr): SExpr {
-    if (s.type === SExprType.CONS) {
-      if (s.car.type === SExprType.ID && (s.car.data as string) === "COMMA")
+    if (s.type === T.CONS) {
+      if (s.car.type === T.ID && (s.car.data as string) === "COMMA")
         return this.eval(s.cdr.car);
       s.car = this.backquote(s.car);
       s.cdr = this.backquote(s.cdr);
@@ -935,21 +1005,21 @@ export class WebLISP {
     let arg, param: SExpr;
     for (
       arg = args, param = params;
-      param.type !== SExprType.NIL;
+      param.type !== T.NIL;
       arg = arg.cdr, param = param.cdr
     ) {
-      if (this.check && arg.type === SExprType.NIL)
+      if (this.check && arg.type === T.NIL)
         throw new RunError("too few arguments");
       const paramId = param.car;
-      if (this.check && paramId.type !== SExprType.ID)
+      if (this.check && paramId.type !== T.ID)
         throw new RunError("parameter must be an ID");
       scope[paramId.data as string] = this.eval(arg.car);
     }
-    if (this.check && arg.type !== SExprType.NIL)
+    if (this.check && arg.type !== T.NIL)
       throw new RunError("too many arguments");
     // run body code
     let res = SExpr.atomNIL();
-    for (; body.type !== SExprType.NIL; body = body.cdr) {
+    for (; body.type !== T.NIL; body = body.cdr) {
       res = this.eval(body.car);
     }
     // close scope
@@ -979,9 +1049,9 @@ export class WebLISP {
   private checkIsNumber(sexpr: SExpr): void {
     // TODO: row, col of source file
     if (
-      sexpr.type !== SExprType.INT &&
-      sexpr.type !== SExprType.FLOAT &&
-      sexpr.type !== SExprType.RATIO
+      sexpr.type !== T.INT &&
+      sexpr.type !== T.FLOAT &&
+      sexpr.type !== T.RATIO
     )
       throw new RunError("expected a number");
   }
