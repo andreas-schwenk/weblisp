@@ -1,3 +1,8 @@
+/* 
+  webLISP, 2022-2023 by Andreas Schwenk <contact@compiler-construction.com>
+  LICENSE: GPLv3 
+*/
+
 import * as assert from "assert";
 
 import { Ratio } from "./types";
