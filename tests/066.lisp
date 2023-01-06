@@ -1,0 +1,6 @@
+(setf s "hello")
+(setf ch #\c)
+(write s)
+(write ch)
+(write (char s 1))
+(equalp #\e (char s 1))
