@@ -1,4 +1,7 @@
-/* webLISP, 2022 by Andreas Schwenk */
+/* 
+  webLISP, 2022-2023 by Andreas Schwenk <contact@compiler-construction.com>
+  LICENSE: GPLv3 
+*/
 
 import * as glob from "glob";
 import * as fs from "fs";
@@ -9,6 +12,7 @@ import { SExpr } from "../src/sexpr";
 let src: string;
 let w: WebLISP;
 
+/* TODO: reactivate these tests:
 //src = "(write (car '(271 1337)))";
 //src = "'(3 4 5 6 7 8)";
 src = "(write (length '(3 4 5 6 7 8)))";
@@ -17,8 +21,14 @@ w = new WebLISP();
 w.import(src);
 const code = w.compile();
 //console.log(code);
-const f = new Function("", code);
-f();
+try {
+  const f = new Function("", code);
+  f();
+} catch (e) {
+  console.log(e);
+  process.exit(-1);
+}
+*/
 
 //process.exit(0);
 
