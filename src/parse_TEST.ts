@@ -37,14 +37,14 @@ assert.ok(sexpr[1].toString() === "5");
 
 // TODO: move to new file parseTRS_TEST.ts
 src =
-  "(trs '(1 b 3 3 4 5 66 77 88) (1 b X X Y:number Z:number W*) -> (blub X Y [+ 2 X] W)";
+  "(trs '(1 b 3 3 4 5 66 77 88) (1 b X X Y:number Z:number W*) -> (blub X Y [+ 2 X] W ~ W)";
 exp =
   "(" +
   /**/ "REWRITE " +
   /**/ "(QUOTE (1 B 3 3 4 5 66 77 88)) " +
   /**/ "(QUOTE (1 B $X $X $Y $Z $$W)) " +
   /**/ "(AND (NUMBERP Y) (NUMBERP Z)) " +
-  /**/ "(BACKQUOTE (BLUB (COMMA X) (COMMA Y) (COMMA (+ 2 X)) (COMMA W)))" +
+  /**/ "(BACKQUOTE (BLUB (COMMA X) (COMMA Y) (COMMA (+ 2 X)) (COMMA W) (~ (COMMA W))))" +
   ")";
 lex = new Lexer(src);
 parser = new Parser();
