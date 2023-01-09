@@ -27,11 +27,11 @@
     c)
 
 (write
-    (trs '(start "" c)
+    (rewrite '(start "" c) (trs
         (start TK #\i) -> (id-i "i" (next))
         (id-i TK #\f) -> (kw "if")
         (id-i TK #\n) -> (id-in "in" (next))
         (id-in TK #\t) -> (kw "int")
-    ))
+    )))
 
 T ; TODO
