@@ -5,7 +5,7 @@
 
 import * as assert from "assert";
 
-import { SExpr } from "./sexpr";
+import { SExpr } from "../src/sexpr";
 
 // toString() tests
 
@@ -222,3 +222,5 @@ assert.ok("X" in vars);
 assert.ok(vars["X"].toString() === "NIL");
 
 // TODO: test with $$x $$x twice
+
+// TODO: test SExpr.clone(), ...
