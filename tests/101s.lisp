@@ -1,4 +1,4 @@
 (equalp 'z
-    (trs 'x
+    (rewrite 'x (trs
         x            -> y
-        [car '(y w)] -> z))
+        [car '(y w)] -> z)))
