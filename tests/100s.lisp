@@ -8,5 +8,6 @@
 (setf my-trs (trs
     x -> y
     y -> z))
+
 (equalp 'z
     (rewrite 'x my-trs))
