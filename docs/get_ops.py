@@ -17,7 +17,7 @@ for line in lines:
     # elif 'default:' in line:
     #    state = 2
     elif state == 1:
-        if 'case' in line:
+        if 'case' in line and not 'IMPLEMENTED' in line:
             if '"' in line:
                 op = line.replace('case "', '').replace('":', '')
                 op = op.replace('<', '&lt;').replace('>', '&gt;')
