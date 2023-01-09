@@ -13,7 +13,6 @@
  * - "[sexpr*]"  is parsed to "(COMMA (sexpr*))"
  * - "(TRS ...)" uses specialized syntax to denote
  *      Term Rewriting Systems (TRS) expressively.
- *      The parser translates the call to "(REWRITE ...)"
  */
 
 import { Lexer } from "./lex";
