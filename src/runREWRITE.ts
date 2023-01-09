@@ -10,24 +10,25 @@ import { RunError, WebLISP } from "./weblisp";
 export function runREWRITE(this: WebLISP, sexpr: SExpr): SExpr {
   // TODO: move code!
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
-  if (this.check) this.checkMinArgCount(sexpr, 4);
+  if (this.check) this.checkArgCount(sexpr, 2);
   // TODO: check, if number of arguments minus 1 divides 3 w/o rest
   // TODO: stop infinite loops
   // term to be rewritten
   const u = this.eval(SExpr.nth(sexpr, 1));
+  const rules = this.eval(SExpr.nth(sexpr, 2));
   let v = u;
   const s: SExpr[] = []; // evaluated left-hand sides of rules
   const cond: SExpr[] = []; // unevaluated conditions of rules
   const t: SExpr[] = []; // unevaluated right-hand sides of rules
   // read rules
-  let x = SExpr.nthcdr(sexpr, 2);
-  while (x.type !== T.NIL) {
-    s.push(this.eval(x.car));
-    x = x.cdr;
-    cond.push(x.car);
-    x = x.cdr;
-    t.push(x.car);
-    x = x.cdr;
+  let r = rules;
+  while (r.type !== T.NIL) {
+    s.push(this.eval(r.car));
+    r = r.cdr;
+    cond.push(r.car);
+    r = r.cdr;
+    t.push(r.car);
+    r = r.cdr;
   }
   // rewrite
   const n = s.length; // number of rules
