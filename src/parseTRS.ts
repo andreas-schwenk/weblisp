@@ -6,6 +6,7 @@
 // TODO: add comments to this file
 
 import { ParseError, Parser } from "./parse";
+import { runTHIRD } from "./runTHIRD";
 import { SExpr } from "./sexpr";
 import { SExprType } from "./types";
 
@@ -18,32 +19,28 @@ export class TRS_Parser {
 
   //G (TRS input {s "->" t})
   TRS_postprocess(s: SExpr): SExpr {
-    // TODO: move TRS functions to new file parseTRS.ts
     // TODO: check if variables exist, ...
-    const res = SExpr.cons(SExpr.atomID("REWRITE"), SExpr.atomNIL());
-    let r = res;
+    let resFirst: SExpr = null;
+    let resLast: SExpr = null;
     if (SExpr.len(s) < 2)
       throw new ParseError("TRS has too few args", s.srcRow, s.srcCol);
-    let state = "input";
+    let state = "s"; //"input";
     let cond: string[] = [];
     let variables: Set<string>;
     for (let t = s.cdr; t.type !== SExprType.NIL; t = t.cdr) {
       let arg = t.car;
       switch (state) {
-        case "input": {
-          this.TRS_uppercase(arg, false, null);
-          r.cdr = SExpr.cons(arg, SExpr.atomNIL());
-          r = r.cdr;
-          state = "s";
-          break;
-        }
         case "s": {
           variables = new Set<string>();
           cond = this.TRS_extractTypeConditions(arg);
           this.TRS_uppercase(arg, true, variables);
           arg = this.parser.generateUnaryCall("BACKQUOTE", arg);
-          r.cdr = SExpr.cons(arg, SExpr.atomNIL());
-          r = r.cdr;
+          const r = SExpr.cons(arg, SExpr.atomNIL());
+          if (resFirst == null) resFirst = resLast = r;
+          else {
+            resLast.cdr = r;
+            resLast = resLast.cdr;
+          }
           state = "->";
           break;
         }
@@ -73,19 +70,21 @@ export class TRS_Parser {
             }
           }
           if (cond.length == 0) {
-            r.cdr = SExpr.cons(SExpr.atomT(), SExpr.atomNIL());
-            r = r.cdr;
+            const r = SExpr.cons(SExpr.atomT(), SExpr.atomNIL());
+            resLast.cdr = r;
+            resLast = resLast.cdr;
           } else if (cond.length == 1) {
-            r.cdr = SExpr.cons(generatedConditions[0], SExpr.atomNIL());
-            r = r.cdr;
+            const r = SExpr.cons(generatedConditions[0], SExpr.atomNIL());
+            resLast.cdr = r;
+            resLast = resLast.cdr;
           } else {
             // (AND c1 c2 ...)
-            const and = SExpr.cons(
+            const r = SExpr.cons(
               this.parser.generateCall("AND", generatedConditions),
               SExpr.atomNIL()
             );
-            r.cdr = and;
-            r = r.cdr;
+            resLast.cdr = r;
+            resLast = resLast.cdr;
           }
           state = "t";
           break;
@@ -95,13 +94,15 @@ export class TRS_Parser {
           this.TRS_uppercase(arg, false, null);
           arg = this.TRS_commaVariablesAndCommands(arg, variables);
           arg = this.parser.generateUnaryCall("BACKQUOTE", arg);
-          r.cdr = SExpr.cons(arg, SExpr.atomNIL());
-          r = r.cdr;
+          const r = SExpr.cons(arg, SExpr.atomNIL());
+          resLast.cdr = r;
+          resLast = resLast.cdr;
           state = "s";
           break;
         }
       }
     }
+    const res = this.parser.generateUnaryCall("QUOTE", resFirst);
     //console.log(res.toString(true)); // TODO: only print on "verbose"
     return res;
   }
