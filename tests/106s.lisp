@@ -11,7 +11,7 @@
 ; TODO: "append" is ugly!
 
 (setf d
-    (TRS '(diff (+ 314 271 1337 (* 3 x)) x)
+    (rewrite '(diff (+ 314 271 1337 (* 3 x)) x) (trs
         (diff X:number V) -> 0
         (diff V V) -> 1
         (diff (+ X Y) V) -> (+ (diff X V) (diff Y V))
@@ -25,6 +25,6 @@
         (* 0 X) -> 0
         (* X 1) -> X
         (* 1 X) -> X
-))
+)))
 (write d)
 (equalp d 3)
