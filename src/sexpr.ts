@@ -32,6 +32,7 @@ export class SExpr {
     const s = new SExpr(SExprType.CONS, srcRow, srcCol);
     s.car = car;
     s.cdr = cdr;
+    s.data = null;
     return s;
   }
 
@@ -245,6 +246,22 @@ export class SExpr {
       return s;
     }
     return tree;
+  }
+
+  static clone(s: SExpr): SExpr {
+    if (s.type === SExprType.CONS)
+      return SExpr.cons(
+        SExpr.clone(s.car),
+        SExpr.clone(s.cdr),
+        s.srcRow,
+        s.srcCol
+      );
+    else {
+      const c = new SExpr(s.type, s.srcRow, s.srcCol);
+      if (s.type === SExprType.RATIO) c.data = (s.data as Ratio).clone();
+      else c.data = s.data;
+      return c;
+    }
   }
 
   toFloat(): number {
