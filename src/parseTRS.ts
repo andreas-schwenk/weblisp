@@ -3,6 +3,8 @@
   LICENSE: GPLv3 
 */
 
+// TODO: add comments to this file
+
 import { ParseError, Parser } from "./parse";
 import { SExpr } from "./sexpr";
 import { SExprType } from "./types";
@@ -39,7 +41,7 @@ export class TRS_Parser {
           variables = new Set<string>();
           cond = this.TRS_extractTypeConditions(arg);
           this.TRS_uppercase(arg, true, variables);
-          arg = this.parser.embedIntoId("BACKQUOTE", arg);
+          arg = this.parser.generateUnaryCall("BACKQUOTE", arg);
           r.cdr = SExpr.cons(arg, SExpr.atomNIL());
           r = r.cdr;
           state = "->";
@@ -92,7 +94,7 @@ export class TRS_Parser {
           //cond = this.TRS_extractTypeConditions(arg);
           this.TRS_uppercase(arg, false, null);
           arg = this.TRS_commaVariablesAndCommands(arg, variables);
-          arg = this.parser.embedIntoId("BACKQUOTE", arg);
+          arg = this.parser.generateUnaryCall("BACKQUOTE", arg);
           r.cdr = SExpr.cons(arg, SExpr.atomNIL());
           r = r.cdr;
           state = "s";
@@ -175,7 +177,7 @@ export class TRS_Parser {
           id = s.data = id.substring(1);
         }*/
         if (!isComma && variables.has(id)) {
-          s = this.parser.embedIntoId("COMMA", s);
+          s = this.parser.generateUnaryCall("COMMA", s);
           //if (sequence) s = this.parser.embedIntoId("~", s);
         }
         break;
