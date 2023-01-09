@@ -1,5 +1,5 @@
 ; TRS
 (equalp 'z
     (rewrite 'x
-        'x  T 'y
-        'y  T 'z))
+        'x T 'y
+        'y T 'z))
