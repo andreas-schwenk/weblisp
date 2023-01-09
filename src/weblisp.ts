@@ -422,6 +422,10 @@ export class WebLISP {
                 }
                 return res;
               }
+              case "APPEND~": {
+                if (this.check) this.checkArgCount(sexpr, 1);
+                return this.appendTilde(this.eval(sexpr.cdr.car));
+              }
               case "APPLY": {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
                 // (APPLY function parameterList)
@@ -494,6 +498,12 @@ export class WebLISP {
                 if (this.check) this.checkArgCount(sexpr, 1);
                 let param = this.eval(sexpr.cdr.car);
                 return param.type === T.CONS ? SExpr.atomT() : SExpr.atomNIL();
+              }
+              case "COPY-LIST": {
+                if (!this.interpret) throw new RunError("UNIMPLEMENTED");
+                if (this.check) this.checkArgCount(sexpr, 1);
+                let param = this.eval(sexpr.cdr.car);
+                return this.copyList(param);
               }
               case "COS": {
                 if (!this.interpret) throw new RunError("UNIMPLEMENTED");
@@ -971,12 +981,26 @@ export class WebLISP {
       }
       // for all rules  s[cond]->t : find matching rule for v
       for (let i = 0; i < n; i++) {
-        const si = s[i];
         const scope: { [id: string]: SExpr } = {};
         this.variables.push(scope);
-        const matching = SExpr.match(si, v, scope);
+        const matching = SExpr.match(s[i], v, scope);
         if (matching && this.eval(cond[i]).type !== T.NIL) {
-          v = this.eval(t[i]);
+          // TODO: only log in verbose mode
+          const vOldStr = v.toString();
+          v = this.eval(SExpr.clone(t[i]));
+          // TODO: appendTilde ONLY if "~" is present (add APPEND~ by parser if needed!)
+          v = this.appendTilde(v);
+          console.log(
+            "REWROTE " +
+              vOldStr +
+              " -> " +
+              v.toString() +
+              " (USING RULE " +
+              s[i].toString() +
+              " -> " +
+              t[i].toString() +
+              ")"
+          );
           change = true;
           numChanges++;
         }
@@ -985,6 +1009,65 @@ export class WebLISP {
     } while (change);
     // return result
     return v;
+  }
+
+  private appendTilde(s: SExpr): SExpr {
+    if (s.type !== T.CONS) return s;
+    let res = s;
+    let change;
+    do {
+      change = false;
+      let t = res;
+      let last: SExpr = null;
+      while (t.type != T.NIL) {
+        if (t.car.type === T.ID && (t.car.data as string) === "~") {
+          change = true;
+          if (t.cdr.car.type !== T.CONS && t.cdr.car.type !== T.NIL)
+            throw new RunError("append~ can only append lists");
+          const subList = this.copyList(t.cdr.car);
+          t = t.cdr.cdr;
+          if (subList.type === T.NIL) {
+            if (last == null) res = t;
+            else last.cdr = t;
+          } else {
+            if (last == null) res = subList;
+            else last.cdr = subList;
+            const newLast = this.getLastCdr(subList);
+            if (newLast != null) last = newLast;
+            last.cdr = t;
+          }
+        } else {
+          last = t;
+          t = t.cdr;
+        }
+      }
+    } while (change);
+    // run recursively
+    for (let t = res; t.type !== T.NIL; t = t.cdr)
+      if (t.car.type === T.CONS) t.car = this.appendTilde(t.car);
+    return res;
+  }
+
+  private copyList(s: SExpr): SExpr {
+    let res: SExpr = SExpr.atomNIL();
+    let current: SExpr = null;
+    let last: SExpr = null;
+    for (let t = s; t.type != T.NIL; t = t.cdr) {
+      current = SExpr.cons(t.car, SExpr.atomNIL());
+      if (last == null) res = current;
+      else last.cdr = current;
+      last = current;
+    }
+    return res;
+  }
+
+  private getLastCdr(s: SExpr): SExpr {
+    let res = s;
+    while (s.type !== T.NIL) {
+      res = s;
+      s = s.cdr;
+    }
+    return res;
   }
 
   private backquote(s: SExpr): SExpr {
