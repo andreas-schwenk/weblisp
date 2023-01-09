@@ -5,7 +5,7 @@
 
 import * as assert from "assert";
 
-import { Lexer } from "./lex";
+import { Lexer } from "../src/lex";
 
 let src = `
 ' #'#'f()

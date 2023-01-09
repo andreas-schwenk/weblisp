@@ -4,9 +4,9 @@
 */
 
 import * as assert from "assert";
-import { Lexer } from "./lex";
+import { Lexer } from "../src/lex";
 
-import { Parser } from "./parse";
+import { Parser } from "../src/parse";
 
 let src = "(+ 1.5 2)";
 let lex = new Lexer(src);
