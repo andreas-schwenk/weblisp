@@ -1,5 +1,5 @@
 ; TRS
 (equalp 'z
-    (rewrite 'x
+    (rewrite 'x '(
         'x            T  'y
-        (car '(y w))  T  'z))
+        (car '(y w))  T  'z)))
