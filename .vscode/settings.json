@@ -6,6 +6,7 @@
     "blub",
     "codemirror",
     "CONSP",
+    "DEFCONST",
     "DEFCONSTANT",
     "defparameter",
     "defun",
