@@ -264,6 +264,28 @@ export class SExpr {
     }
   }
 
+  static copyList(s: SExpr): SExpr {
+    let res: SExpr = SExpr.atomNIL();
+    let current: SExpr = null;
+    let last: SExpr = null;
+    for (let t = s; t.type != SExprType.NIL; t = t.cdr) {
+      current = SExpr.cons(t.car, SExpr.atomNIL());
+      if (last == null) res = current;
+      else last.cdr = current;
+      last = current;
+    }
+    return res;
+  }
+
+  static getLastCdr(s: SExpr): SExpr {
+    let res = s;
+    while (s.type !== SExprType.NIL) {
+      res = s;
+      s = s.cdr;
+    }
+    return res;
+  }
+
   toFloat(): number {
     switch (this.type) {
       case SExprType.INT:
