@@ -10,21 +10,24 @@
 
 ; TODO: "append" is ugly!
 
+(setf derivate (trs
+    (diff X:number V) -> 0
+    (diff V V) -> 1
+    (diff (+ X Y) V) -> (+ (diff X V) (diff Y V))
+    (diff (+ X Y Z*) V) -> (+ (diff X V) (diff Y V) (diff (+ ~ Z) V))
+    (diff (* X Y) V) -> (+ (* (diff X V) Y) (* X (diff Y V)))
+    (+ X:number Y:number) -> [+ X Y]
+    (+ X:number Y:number Z*) -> (+ [+ X Y] ~ Z)
+    (+ X 0) -> X
+    (+ 0 X) -> X
+    (* X 0) -> 0
+    (* 0 X) -> 0
+    (* X 1) -> X
+    (* 1 X) -> X
+))
+
 (setf d
-    (rewrite '(diff (+ 314 271 1337 (* 3 x)) x) (trs
-        (diff X:number V) -> 0
-        (diff V V) -> 1
-        (diff (+ X Y) V) -> (+ (diff X V) (diff Y V))
-        (diff (+ X Y Z*) V) -> (+ (diff X V) (diff Y V) (diff (+ ~ Z) V))
-        (diff (* X Y) V) -> (+ (* (diff X V) Y) (* X (diff Y V)))
-        (+ X:number Y:number) -> [+ X Y]
-        (+ X:number Y:number Z*) -> (+ [+ X Y] ~ Z)
-        (+ X 0) -> X
-        (+ 0 X) -> X
-        (* X 0) -> 0
-        (* 0 X) -> 0
-        (* X 1) -> X
-        (* 1 X) -> X
-)))
+    (rewrite '(diff (+ 314 271 1337 (* 3 x)) x) derivate))
+
 (write d)
 (equalp d 3)
