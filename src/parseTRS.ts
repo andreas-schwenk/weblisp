@@ -39,7 +39,7 @@ export class TRS_Parser {
           variables = new Set<string>();
           cond = this.TRS_extractTypeConditions(arg);
           this.TRS_uppercase(arg, true, variables);
-          arg = this.parser.embedIntoId("QUOTE", arg);
+          arg = this.parser.embedIntoId("BACKQUOTE", arg);
           r.cdr = SExpr.cons(arg, SExpr.atomNIL());
           r = r.cdr;
           state = "->";
@@ -89,7 +89,7 @@ export class TRS_Parser {
           break;
         }
         case "t": {
-          cond = this.TRS_extractTypeConditions(arg);
+          //cond = this.TRS_extractTypeConditions(arg);
           this.TRS_uppercase(arg, false, null);
           arg = this.TRS_commaVariablesAndCommands(arg, variables);
           arg = this.parser.embedIntoId("BACKQUOTE", arg);
@@ -100,7 +100,7 @@ export class TRS_Parser {
         }
       }
     }
-    console.log(res.toString(true)); // TODO: only print on "verbose"
+    //console.log(res.toString(true)); // TODO: only print on "verbose"
     return res;
   }
 
@@ -138,7 +138,8 @@ export class TRS_Parser {
           value[0] <= "Z" &&
           value === value.toUpperCase() &&
           value !== "QUOTE" &&
-          value !== "BACKQUOTE"
+          value !== "BACKQUOTE" &&
+          value !== "COMMA"
         ) {
           let varId = value.toUpperCase();
           let sequence = false;
@@ -167,9 +168,15 @@ export class TRS_Parser {
   ): SExpr {
     switch (s.type) {
       case SExprType.ID: {
-        const id = s.data as string;
+        let id = s.data as string;
+        let sequence = false;
+        /*if (id.startsWith("~")) {
+          sequence = true;
+          id = s.data = id.substring(1);
+        }*/
         if (!isComma && variables.has(id)) {
           s = this.parser.embedIntoId("COMMA", s);
+          //if (sequence) s = this.parser.embedIntoId("~", s);
         }
         break;
       }
