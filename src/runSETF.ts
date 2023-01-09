@@ -13,12 +13,9 @@ export function runSETF(this: WebLISP, sexpr: SExpr): SExpr {
   const n = SExpr.len(sexpr);
   if (this.check) this.checkEvenArgCount(sexpr);
   let res = SExpr.atomNIL();
-  for (let s = sexpr.cdr; s.type !== T.NIL; s = s.cdr) {
-    const place = s.car;
-    res = this.eval(place, true); // true := create if not exists
-    s = s.cdr; // next is expr
-    const value = this.eval(s.car);
-    res.set(value);
+  for (let s = sexpr.cdr; s.type !== T.NIL; s = s.cdr.cdr) {
+    res = this.eval(s.car, true); // true := create if not exists
+    res.set(this.eval(s.cdr.car));
   }
   return res;
 }
