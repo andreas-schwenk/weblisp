@@ -7,18 +7,18 @@ esbuild.buildSync({
   globalName: "RUNTIME",
   minify: true,
   target: "es2020",
-  entryPoints: ["src/runtime.ts"],
+  entryPoints: ["src/_runtime.ts"],
   bundle: true,
-  outfile: "build/runtime.min.js",
+  outfile: "build/_runtime.min.js",
 });
 
-let runtimeCode = fs.readFileSync("build/runtime.min.js", "utf-8");
+let runtimeCode = fs.readFileSync("build/_runtime.min.js", "utf-8");
 runtimeCode =
   "// THIS FILE IS AUTO CREATED BY build.mjs\n" +
   "export const runtimeCode = `" +
   runtimeCode.replace(/`\n`/g, '"\\n"') +
   "`;\n";
-fs.writeFileSync("src/runtimeCode.ts", runtimeCode);
+fs.writeFileSync("src/_runtimeCode.ts", runtimeCode);
 //console.log(runtimeCode);
 
 esbuild.buildSync({
