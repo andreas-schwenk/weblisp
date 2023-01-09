@@ -16,7 +16,7 @@ let runtimeCode = fs.readFileSync("build/runtime.min.js", "utf-8");
 runtimeCode =
   "// THIS FILE IS AUTO CREATED BY build.mjs\n" +
   "export const runtimeCode = `" +
-  runtimeCode +
+  runtimeCode.replace(/`\n`/g, '"\\n"') +
   "`;\n";
 fs.writeFileSync("src/runtimeCode.ts", runtimeCode);
 //console.log(runtimeCode);
