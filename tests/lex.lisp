@@ -26,9 +26,12 @@
     (setf c (char input pos))
     c)
 
-(rewrite '(start "" c)
-    (start TK #\i) -> (id-i "i" (next))
-    (id-i TK #\f) -> (kw "if")
-    (id-i TK #\n) -> (id-in "in" (next))
-    (id-in TK #\t) -> (kw "int")
-)
+(write
+    (trs '(start "" c)
+        (start TK #\i) -> (id-i "i" (next))
+        (id-i TK #\f) -> (kw "if")
+        (id-i TK #\n) -> (id-in "in" (next))
+        (id-in TK #\t) -> (kw "int")
+    ))
+
+T ; TODO
