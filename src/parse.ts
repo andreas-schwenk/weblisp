@@ -3,68 +3,94 @@
   LICENSE: GPLv3 
 */
 
-// TODO: add comments to this file
+/**
+ * This file implements an SExpr-Parser.
+ *
+ * Additions to COMMON LISP:
+ * - "`sexpr"    is parsed to "(BACKQUOTE sexpr)"
+ * - ",sexpr"    is parsed to "(COMMA sexpr)"
+ * - "#'sexpr"   is parsed to "(FUNCTION sexpr)"
+ * - "[sexpr*]"  is parsed to "(COMMA (sexpr*))"
+ * - "(TRS ...)" uses specialized syntax to denote
+ *      Term Rewriting Systems (TRS) expressively.
+ *      The parser translates the call to "(REWRITE ...)"
+ */
 
 import { Lexer } from "./lex";
 import { TRS_Parser } from "./parseTRS";
 import { SExpr } from "./sexpr";
 import { SExprType } from "./types";
 
+export class ParseError extends Error {
+  constructor(msg: string, row = -1, col = -1) {
+    if (row < 0) super("Error: " + msg);
+    else super("Error:" + row + ":" + col + ": " + msg);
+    this.name = "ParseError";
+  }
+}
+
 export class Parser {
+  /**
+   * parses a sequence of s-expressions
+   * @param lexer
+   * @returns
+   */
   public parse(lexer: Lexer): SExpr[] {
     const res: SExpr[] = [];
-    while (!lexer.isEof()) {
-      res.push(this.parseSExpr(lexer));
-    }
+    while (!lexer.isEof()) res.push(this.parseSExpr(lexer));
     return res;
   }
 
-  //G sexpr = "#'" sexpr | "'" sexpr | "`" sexpr | "(" { sexpr } ")" | "T" | "NIL" | "." | INT | REAL | CHAR | STR | ID;
+  /**
+   * recursively parses an SExpr
+   * @param lexer
+   * @returns
+   */
   public parseSExpr(lexer: Lexer): SExpr {
+    //G sexpr = "T" | "NIL" | "#'" | "'" | "`" | "," | "(" { sexpr } ")"
+    //   | "[" { sexpr } "]" | "." | ["-"] (INT | FLOAT | RATIO)
+    //   | "#\\X", with character X | STR | ID.
     if (lexer.getToken() === "T") {
+      // "T"
       const sexpr = SExpr.atomT(lexer.getRow(), lexer.getCol());
       lexer.next();
       return sexpr;
     } else if (lexer.getToken() === "NIL") {
+      // "NIL"
       const sexpr = SExpr.atomNIL(lexer.getRow(), lexer.getCol());
       lexer.next();
       return sexpr;
     } else if (["#'", "'", "`", ","].includes(lexer.getToken())) {
-      // #'S -> (function S)
-      // 'S -> (quote S)
-      // `S -> (backquote S)
-      // ,S -> (comma S)
-      // TODO: "backquote" and "comma" are not Common LISP compatible!
+      // "#'" | "'" | "`" | ","
       let id = "";
       switch (lexer.getToken()) {
         case "#'":
+          // #'S -> (function S)
           id = "FUNCTION";
           break;
         case "'":
+          // 'S -> (quote S)
           id = "QUOTE";
           break;
         case "`":
+          // `S -> (backquote S)
           id = "BACKQUOTE";
           break;
         case ",":
+          // ,S -> (comma S)
           id = "COMMA";
           break;
       }
       lexer.next();
-      const s = this.parseSExpr(lexer);
-      let sexpr = SExpr.cons(
-        SExpr.atomID(id),
-        SExpr.cons(s, SExpr.atomNIL()),
-        lexer.getRow(),
-        lexer.getCol()
-      );
-      return sexpr;
+      return this.generateUnaryCall(id, this.parseSExpr(lexer));
     } else if (lexer.getToken() === "(" || lexer.getToken() === "[") {
-      // TODO: only allow brackets in TRS mode!
+      // "(" { sexpr } ")" | "[" { sexpr } "]"
       const brackets = lexer.getToken() === "[";
       lexer.next();
       let parsingTRS = false;
       if (lexer.getToken() === "TRS") {
+        // in case of "(TRS ...)", the parser translates
+        // the call to "(REWRITE ...)" using class TRS_Parser
         parsingTRS = true;
         lexer.activateTrsMode(true);
       }
@@ -72,7 +98,7 @@ export class Parser {
       let first: SExpr = SExpr.atomNIL(lexer.getRow(), lexer.getCol());
       let i = 0;
       let dot = false;
-      let dots = 0;
+      let dotCtr = 0;
       while (
         !lexer.isEof() &&
         lexer.getToken() !== ")" &&
@@ -87,7 +113,7 @@ export class Parser {
               s.srcCol
             );
           dot = true;
-          dots++;
+          dotCtr++;
           continue;
         }
         if (dot) {
@@ -101,7 +127,7 @@ export class Parser {
         sexpr = cons;
         i++;
       }
-      if (dot || dots > 1)
+      if (dot || dotCtr > 1)
         throw new ParseError(
           "'.' is not allowed here.",
           lexer.getRow(),
@@ -123,12 +149,14 @@ export class Parser {
         const trsParser = new TRS_Parser(this);
         first = trsParser.TRS_postprocess(first);
       }
-      return brackets ? this.embedIntoId("COMMA", first) : first;
+      return brackets ? this.generateUnaryCall("COMMA", first) : first;
     } else if (lexer.getToken() === ".") {
+      // "."
       const sexpr = SExpr.atomID(".", lexer.getRow(), lexer.getCol());
       lexer.next();
       return sexpr;
     } else if (
+      // ["-"] (INT | FLOAT | RATIO)
       (lexer.getToken()[0] >= "0" && lexer.getToken()[0] <= "9") ||
       (lexer.getToken().length > 1 &&
         lexer.getToken()[0] == "-" &&
@@ -149,17 +177,20 @@ export class Parser {
       lexer.next();
       return sexpr;
     } else if (lexer.getToken().startsWith("#\\")) {
+      // "#\\X", with character X
       // TODO: check, if valid
       const tk = lexer.getToken();
       const sexpr = SExpr.atomCHAR(tk.substring(2));
       lexer.next();
       return sexpr;
     } else if (lexer.getToken()[0] == '"') {
+      // STR
       const tk = lexer.getToken();
       const sexpr = SExpr.atomSTRING(tk.substring(1, tk.length - 1));
       lexer.next();
       return sexpr;
     } else {
+      // ID
       let value = lexer.getToken();
       const sexpr = SExpr.atomID(value, lexer.getRow(), lexer.getCol());
       lexer.next();
@@ -167,26 +198,30 @@ export class Parser {
     }
   }
 
-  public embedIntoId(id: string, sexpr: SExpr): SExpr {
+  /**
+   * creates an SExpr of the form "(ID sexpr)"
+   * @param id
+   * @param sexpr
+   * @returns
+   */
+  public generateUnaryCall(id: string, sexpr: SExpr): SExpr {
     return SExpr.cons(
       SExpr.atomID(id),
-      SExpr.cons(sexpr, SExpr.atomNIL()),
+      SExpr.cons(sexpr, SExpr.atomNIL(), sexpr.srcRow, sexpr.srcCol),
       sexpr.srcRow,
       sexpr.srcCol
     );
   }
 
+  /**
+   * creates an SExpr of the form "(ID args[0] args[1] ...)"
+   * @param id
+   * @param args
+   * @returns
+   */
   public generateCall(id: string, args: SExpr[]): SExpr {
     let e: SExpr = SExpr.atomNIL();
     for (let k = args.length - 1; k >= 0; k--) e = SExpr.cons(args[k], e);
     return SExpr.cons(SExpr.atomID(id), e);
-  }
-}
-
-export class ParseError extends Error {
-  constructor(msg: string, row = -1, col = -1) {
-    if (row < 0) super("Error: " + msg);
-    else super("Error:" + row + ":" + col + ": " + msg);
-    this.name = "ParseError";
   }
 }
