@@ -60,6 +60,7 @@ import { runTYPEP } from "./runTYPEP";
 import { runWRITE } from "./runWRITE";
 import { run__COMPARE, run__MINUS__DIV, run__PLUS__MUL } from "./run_ARITH";
 import { runBACKQUOTE, runBACKQUOTE_core } from "./runBACKQUOTE";
+import { runASSERT } from "./runASSERT";
 
 export class DebugInfo {
   breakpointLine = 0;
@@ -103,6 +104,7 @@ export class WebLISP {
   protected runAPPEND_TILDE = runAPPEND_TILDE;
   protected runAPPEND_TILDE_core = runAPPEND_TILDE_core;
   protected runAPPLY = runAPPLY;
+  protected runASSERT = runASSERT;
   protected runATOM = runATOM;
   protected runBACKQUOTE = runBACKQUOTE;
   protected runBACKQUOTE_core = runBACKQUOTE_core;
@@ -348,6 +350,8 @@ export class WebLISP {
                 return this.runAPPEND_TILDE(sexpr);
               case "APPLY":
                 return this.runAPPLY(sexpr);
+              case "ASSERT":
+                return this.runASSERT(sexpr);
               case "ATOM":
                 return this.runATOM(sexpr);
               case "BACKQUOTE":
