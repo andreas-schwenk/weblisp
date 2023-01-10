@@ -222,8 +222,9 @@ export class SExpr {
       ) {
         /* skip */
       } else {
-        if (i == 0) res = t = SExpr.cons(element, SExpr.atomNIL());
-        else {
+        if (i == 0) {
+          res = t = SExpr.cons(element, SExpr.atomNIL());
+        } else {
           t.cdr = SExpr.cons(element, SExpr.atomNIL());
           t = t.cdr;
         }
