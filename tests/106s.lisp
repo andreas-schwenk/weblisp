@@ -31,3 +31,5 @@
 
 (write d)
 (equalp d 3)
+
+; TODO: define asserts to easily check multiple tests per file
