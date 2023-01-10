@@ -41,7 +41,10 @@ export function runREWRITE(this: WebLISP, sexpr: SExpr): SExpr {
   }
   // rewrite
   const n = s.length; // number of rules
-  return this.runREWRITE_core(n, s, cond, t, v);
+  const res = this.runREWRITE_core(n, s, cond, t, v);
+  console.log("REWRITING RESULT:");
+  console.log(res.toString(true));
+  return res;
 }
 
 export function runREWRITE_core(
