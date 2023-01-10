@@ -330,6 +330,7 @@ export class SExpr {
    * @returns
    */
   toString(format = false, indent = 0): string {
+    // TODO: if format==true, then prevent empty line at beginning (only an issue for CONS)
     switch (this.type) {
       case SExprType.NIL:
         return "NIL";
