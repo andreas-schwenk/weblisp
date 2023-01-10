@@ -18,20 +18,20 @@
 ;   (ter ";")
 
 (setf input "int x = 4;")
-(setf c #\0)   ; TODO: #\zero
 (setf pos -1)
 
 (defun next ()
     (setf pos (+ pos 1))
-    (setf c (char input pos))
-    c)
+    (char input pos))
+
+(setf lex-rules (trs
+    (start TK #\i) -> (id-i "i" (next))
+    (id-i TK #\f) -> (kw "if")
+    (id-i TK #\n) -> (id-in "in" (next))
+    (id-in TK #\t) -> (kw "int")
+))
 
 (write
-    (rewrite '(start "" c) (trs
-        (start TK #\i) -> (id-i "i" (next))
-        (id-i TK #\f) -> (kw "if")
-        (id-i TK #\n) -> (id-in "in" (next))
-        (id-in TK #\t) -> (kw "int")
-    )))
+    (rewrite '(start "" #\0) lex-rules))
 
 T ; TODO
