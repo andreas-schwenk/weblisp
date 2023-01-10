@@ -7,6 +7,12 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (CAR list)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runCAR(this: WebLISP, sexpr: SExpr): SExpr {
   if (this.interpret) {
     if (this.check) this.checkArgCount(sexpr, 1);

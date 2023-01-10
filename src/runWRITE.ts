@@ -7,6 +7,12 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (WRITE sexpr)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runWRITE(this: WebLISP, sexpr: SExpr): SExpr {
   if (this.interpret) {
     if (this.check) this.checkArgCount(sexpr, 1);

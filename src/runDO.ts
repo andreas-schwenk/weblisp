@@ -7,11 +7,16 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (DO init cond body*)
+ *   init = ((id start update)*)
+ *   cond = (condCore expr*)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runDO(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
-  // (DO init cond body*)
-  // init = ((id start update)*)
-  // cond = (condCore expr*)
   let res = SExpr.atomNIL();
   const doScope: { [id: string]: SExpr } = {};
   this.variables.push(doScope);

@@ -7,6 +7,12 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (CONS car cdr)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runCONS(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
   if (this.check) this.checkArgCount(sexpr, 2);

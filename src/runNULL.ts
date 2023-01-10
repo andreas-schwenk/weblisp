@@ -7,6 +7,12 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (NULL sexpr)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runNULL(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
   // same as NOT

@@ -7,13 +7,18 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (OR sexpr*)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runOR(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
   let res = SExpr.atomNIL();
   for (let s = sexpr.cdr; s.type === T.CONS; s = s.cdr) {
-    const t = this.eval(s.car);
-    if (t.type !== T.NIL) return t;
-    res = t;
+    res = this.eval(s.car);
+    if (res.type !== T.NIL) break;
   }
   return res;
 }

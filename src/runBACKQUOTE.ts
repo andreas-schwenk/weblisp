@@ -7,6 +7,12 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (BACKQUOTE sexpr)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runBACKQUOTE(this: WebLISP, sexpr: SExpr): SExpr {
   // TODO: move code!
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");

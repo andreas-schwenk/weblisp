@@ -7,9 +7,14 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (APPLY function parameterList)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runAPPLY(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
-  // (APPLY function parameterList)
   if (this.check) this.checkMinArgCount(sexpr, 2);
   const fun = this.eval(sexpr.cdr.car);
   if (this.check && fun.type !== T.DEFUN)

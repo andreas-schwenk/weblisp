@@ -7,9 +7,14 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (APPEND list* obj)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runAPPEND(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
-  // (APPEND list* obj)
   // TODO: obj must be used as CDR w/o copying all CONSES
   // TODO: must check, if list* contains lists!!
   let res = SExpr.atomNIL();

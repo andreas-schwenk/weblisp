@@ -7,6 +7,12 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (PROGN sexpr*)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runPROGN(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
   let res = SExpr.atomNIL();

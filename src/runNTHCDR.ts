@@ -7,9 +7,14 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (NTHCDR idx list)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runNTHCDR(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
-  // (NTHCDR idx list)
   if (this.check) this.checkArgCount(sexpr, 2);
   const idx = sexpr.cdr.car;
   const list = this.eval(sexpr.cdr.cdr.car);

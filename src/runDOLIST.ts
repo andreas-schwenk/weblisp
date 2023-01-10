@@ -7,9 +7,14 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (DOLIST (id list) expr*)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runDOLIST(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
-  // (DOLIST (id list) expr*)
   let res = SExpr.atomNIL();
   const scope: { [id: string]: SExpr } = {};
   this.variables.push(scope);

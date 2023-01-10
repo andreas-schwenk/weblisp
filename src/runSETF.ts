@@ -7,9 +7,14 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (SETF place expr place expr ...)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runSETF(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
-  // (SETF place expr place expr ...)
   const n = SExpr.len(sexpr);
   if (this.check) this.checkEvenArgCount(sexpr);
   let res = SExpr.atomNIL();

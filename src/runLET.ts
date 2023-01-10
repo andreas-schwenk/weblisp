@@ -7,10 +7,15 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (LET ((id init)*) expr*)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runLET(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
   // TODO: LET vs LET*
-  // (LET ((id init)*) expr*)
   let res = SExpr.atomNIL();
   const letScope: { [id: string]: SExpr } = {};
   this.variables.push(letScope);

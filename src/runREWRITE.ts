@@ -7,6 +7,15 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (REWRITE input (s0 c0 t0 s1 c1 t1 ...))
+ *   si := left-hand side of a rewriting rule (that is matched to the current expression)
+ *   ti := right-hand side of a rewriting rule (result; filled with variable values from s)
+ *   ci := additional condition for rule application
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runREWRITE(this: WebLISP, sexpr: SExpr): SExpr {
   // TODO: move code!
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");

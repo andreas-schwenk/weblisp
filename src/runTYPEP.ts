@@ -7,6 +7,12 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (TYPEP expr ("INTEGER"|"FLOAT"|"RATIO"))
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runTYPEP(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
   if (this.check) this.checkArgCount(sexpr, 2);

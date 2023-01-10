@@ -7,6 +7,13 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (DEFCONSTANT id sexpr) | (DEFPARAMETER id sexpr)
+ * @param this
+ * @param sexpr
+ * @param isDefConstant
+ * @returns
+ */
 export function runDEFCONST_PARAM(
   this: WebLISP,
   sexpr: SExpr,

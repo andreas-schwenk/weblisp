@@ -7,6 +7,12 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (SUBSTITUTE new-expr old-expr tree)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runSUBSTITUTE(this: WebLISP, sexpr: SExpr): SExpr {
   if (!this.interpret) throw new RunError("UNIMPLEMENTED");
   // TODO: SUBSTITUTE AND SUBST ARE NOT EQUAL!!

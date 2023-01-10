@@ -7,10 +7,20 @@ import { SExpr } from "./sexpr";
 import { SExprType as T } from "./types";
 import { RunError, WebLISP } from "./weblisp";
 
+/**
+ * (LENGTH sexpr)
+ * @param this
+ * @param sexpr
+ * @returns
+ */
 export function runLENGTH(this: WebLISP, sexpr: SExpr): SExpr {
   if (this.interpret) {
     if (this.check) this.checkArgCount(sexpr, 1);
     let param = this.eval(sexpr.cdr.car);
+    if (this.check) {
+      if (param.type !== T.CONS && param.type !== T.NIL)
+        throw new RunError("LENGTH expects a list");
+    }
     let len;
     for (len = 0; param.type === T.CONS; len++) param = param.cdr;
     return SExpr.atomINT(len);
